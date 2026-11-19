@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>학습 코칭 플래너</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #F4F2EC; 
+            color: #2D2D2D; 
+        }
+        
+        .paper-card {
+            background-color: #FFFFFF;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border: 1px solid #E5E2DC;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #F4F2EC; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #D4D4D4; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #A3A3A3; }
+
+        .custom-checkbox {
+            appearance: none; width: 1.25rem; height: 1.25rem;
+            border: 2px solid #D4D4D4; border-radius: 0.25rem;
+            background-color: white; display: grid; place-content: center;
+            cursor: pointer; transition: all 0.2s ease-in-out;
+        }
+        .custom-checkbox::before {
+            content: ""; width: 0.65em; height: 0.65em;
+            transform: scale(0); transition: 120ms transform ease-in-out;
+            box-shadow: inset 1em 1em #2D2D2D; background-color: #2D2D2D;
+            transform-origin: center;
+            clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+        }
+        .custom-checkbox:checked { border-color: #2D2D2D; }
+        .custom-checkbox:checked::before { transform: scale(1); }
+        .custom-checkbox:disabled { cursor: not-allowed; opacity: 0.6; }
+
+        .timetable-grid {
+            display: grid; grid-template-columns: 60px repeat(7, minmax(100px, 1fr));
+            border-top: 1px solid #E5E2DC; border-left: 1px solid #E5E2DC;
+        }
+        .timetable-cell {
+            border-right: 1px solid #E5E2DC; border-bottom: 1px solid #E5E2DC;
+            min-height: 48px;
+        }
+        .timetable-header {
+            background-color: #F8F6F0; font-weight: 600; text-align: center;
+            padding: 8px 4px; font-size: 0.875rem; color: #555555;
+        }
+        .time-label {
+            text-align: center; font-size: 0.75rem; color: #999999;
+            padding-top: 8px; background-color: #FDFBF7;
+        }
+        
+        .sch-school { background-color: #FFFFFF; color: #2D2D2D; border: 2px dashed #D4D4D4; }
+        .sch-academy { background-color: #E5E5E5; color: #2D2D2D; border: 1px solid #D4D4D4; }
+        .sch-personal { background-color: #FFFFFF; color: #2D2D2D; border: 2px solid #2D2D2D; }
+        
+        .animate-spin-slow { animation: spin 3s linear infinite; }
+    </style>
+</head>
+<body class="min-h-screen p-3 md:p-6 flex flex-col items-center">
+
+    <div class="w-full max-w-7xl flex flex-col gap-5">
+        
+        <!-- Header (Fixed at top layout) -->
+        <header class="w-full paper-card p-4 rounded-xl flex flex-col xl:flex-row justify-between items-center gap-4">
+            <!-- Left: Title & Navigation -->
+            <div class="flex flex-col md:flex-row items-center gap-4 w-full xl:w-auto">
+                <h1 class="text-2xl font-bold tracking-tight whitespace-nowrap"><i class="ph-fill ph-notebook text-[#2D2D2D]"></i> 학습 코칭 플래너</h1>
+                <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 px-2 py-1 rounded-lg">
+                    <button class="p-1 rounded hover:bg-gray-200 transition text-gray-600" onclick="changeWeek(-1)"><i class="ph ph-caret-left"></i></button>
+                    <span id="current-week-label" class="text-sm font-bold text-[#2D2D2D] w-[220px] text-center">...</span>
+                    <button class="p-1 rounded hover:bg-gray-200 transition text-gray-600" onclick="changeWeek(1)"><i class="ph ph-caret-right"></i></button>
+                    <button class="ml-1 px-3 py-1 bg-white border border-gray-300 rounded text-xs font-bold hover:bg-gray-100 transition shadow-sm" onclick="goToToday()">오늘</button>
+                </div>
+            </div>
+            
+            <!-- Right: Toggles -->
+            <div class="flex flex-wrap items-center justify-center gap-3 w-full xl:w-auto">
+                <!-- Start Day Toggle -->
+                <div class="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200 text-sm font-medium">
+                    <button id="btn-start-sun" class="px-3 py-1.5 rounded-md transition-all bg-[#2D2D2D] text-white shadow-sm" onclick="setStartDay(0)">일 시작</button>
+                    <button id="btn-start-mon" class="px-3 py-1.5 rounded-md transition-all text-gray-500 hover:text-black" onclick="setStartDay(1)">월 시작</button>
+                </div>
+                
+                <!-- Mode Toggle -->
+                <div class="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200 text-sm font-medium">
+                    <button id="btn-mode-child" class="px-3 py-1.5 rounded-md transition-all bg-[#2D2D2D] text-white shadow-sm flex items-center gap-1" onclick="setMode('child')">
+                        <i class="ph ph-student"></i> 자녀 모드
+                    </button>
+                    <button id="btn-mode-parent" class="px-3 py-1.5 rounded-md transition-all text-gray-500 hover:text-black flex items-center gap-1" onclick="setMode('parent')">
+                        <i class="ph ph-chalkboard-teacher"></i> 코치 모드
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Tabs -->
+        <div class="flex gap-6 border-b border-gray-300 px-2">
+            <button id="tab-planner" class="pb-3 border-b-2 border-[#2D2D2D] font-bold text-[#2D2D2D] transition-colors" onclick="switchTab('planner')">주간 플래너</button>
+            <button id="tab-timetable" class="pb-3 border-b-2 border-transparent text-gray-400 hover:text-[#2D2D2D] font-medium transition-colors" onclick="switchTab('timetable')">시간표</button>
+        </div>
+
+        <!-- View: Planner -->
+        <div id="view-planner" class="flex flex-col gap-4">
+            
+            <!-- Weekly Progress -->
+            <div class="paper-card rounded-xl p-4 flex items-center gap-4">
+                <div class="whitespace-nowrap font-bold text-sm text-[#2D2D2D] flex items-center gap-1">
+                    <i class="ph-fill ph-target"></i> 이번 주 달성률
+                </div>
+                <div class="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                    <div id="weekly-progress-bar" class="h-full bg-[#2D2D2D] transition-all duration-700 w-0"></div>
+                </div>
+                <div id="weekly-progress-text" class="whitespace-nowrap font-bold text-sm text-gray-500 w-10 text-right">0%</div>
+            </div>
+
+            <div class="flex flex-col xl:flex-row gap-5">
+                <!-- Weekly Grid -->
+                <div id="weekly-view" class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+                    <!-- Dynamically generated by JS -->
+                </div>
+
+                <!-- Weekly Review (Sidebar) -->
+                <aside class="w-full xl:w-80 flex flex-col gap-4">
+                    <div class="paper-card p-5 rounded-xl flex flex-col h-full gap-4">
+                        <div class="flex-1 flex flex-col min-h-[160px]">
+                            <h2 class="text-sm font-bold flex items-center gap-2 mb-2 border-b border-gray-200 pb-2 text-[#2D2D2D]">
+                                <i class="ph-fill ph-user"></i> 자녀의 한 주 돌아보기
+                            </h2>
+                            <textarea id="ta-child-reflection" class="w-full flex-1 border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#2D2D2D] resize-none bg-transparent" placeholder="이번 주 학습은 어땠나요? 스스로 평가해보세요."></textarea>
+                        </div>
+                        <div class="flex-1 flex flex-col min-h-[160px]">
+                            <h2 class="text-sm font-bold flex items-center gap-2 mb-2 border-b border-gray-200 pb-2 text-[#2D2D2D]">
+                                <i class="ph-fill ph-chat-circle-text"></i> 부모님 코멘트
+                            </h2>
+                            <textarea id="ta-parent-review" class="w-full flex-1 border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#2D2D2D] resize-none bg-transparent" placeholder="자녀를 위한 격려와 피드백을 남겨주세요." disabled></textarea>
+                        </div>
+                        <div class="mt-1 pt-2 border-t border-gray-200 text-xs text-gray-400 flex items-center gap-2 justify-end">
+                            <i class="ph ph-arrows-clockwise inline-block animate-spin-slow" id="sync-icon" style="display:none;"></i> 
+                            <span id="sync-status">자동 저장됨</span>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- View: Timetable -->
+        <div id="view-timetable" class="hidden flex-col gap-4 mb-4">
+            <div class="paper-card rounded-xl overflow-hidden">
+                <div class="p-4 border-b border-gray-200 flex flex-wrap justify-between items-center bg-white gap-3">
+                    <h2 class="text-lg font-bold flex items-center gap-2 text-[#2D2D2D]">
+                        <i class="ph-fill ph-calendar-blank"></i> 고정 스케줄 시간표
+                    </h2>
+                    <div class="flex gap-4 text-xs font-medium bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                        <span class="flex items-center gap-1.5"><div class="w-3.5 h-3.5 sch-school rounded-sm"></div>학교 수업</span>
+                        <span class="flex items-center gap-1.5"><div class="w-3.5 h-3.5 sch-academy rounded-sm"></div>학원</span>
+                        <span class="flex items-center gap-1.5"><div class="w-3.5 h-3.5 sch-personal rounded-sm"></div>개인학습</span>
+                    </div>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar bg-white">
+                    <div class="min-w-[800px]">
+                        <div id="timetable-grid" class="timetable-grid">
+                            <!-- Generated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modals -->
+    <div id="schedule-modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 opacity-0 transition-opacity duration-200">
+        <div class="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full mx-4 transform scale-95 transition-transform duration-200">
+            <h3 class="text-lg font-bold flex items-center gap-2 mb-4 text-[#2D2D2D]">
+                <i class="ph-fill ph-clock"></i> 일정 관리
+            </h3>
+            <input type="hidden" id="sch-day">
+            <input type="hidden" id="sch-hour">
+            <input type="hidden" id="sch-id">
+            
+            <div class="mb-4">
+                <label class="block text-sm font-bold text-gray-700 mb-1">일정 이름</label>
+                <input type="text" id="sch-title" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#2D2D2D]" placeholder="예: 수학학원, 자습 등">
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-gray-700 mb-1">분류</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" class="sch-type-btn border border-gray-300 rounded-lg py-2 text-sm font-medium transition-all" data-type="school">학교</button>
+                    <button type="button" class="sch-type-btn border border-gray-300 rounded-lg py-2 text-sm font-medium transition-all" data-type="academy">학원</button>
+                    <button type="button" class="sch-type-btn border border-gray-300 rounded-lg py-2 text-sm font-medium transition-all" data-type="personal">개인학습</button>
+                </div>
+                <input type="hidden" id="sch-type" value="school">
+            </div>
+
+            <div class="flex justify-between items-center">
+                <button id="btn-delete-sch" class="text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg text-sm transition-colors hidden font-medium"><i class="ph ph-trash"></i> 삭제</button>
+                <div class="flex gap-2 ml-auto">
+                    <button onclick="closeScheduleModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 font-medium">취소</button>
+                    <button onclick="saveSchedule()" class="px-4 py-2 bg-[#2D2D2D] text-white rounded-lg text-sm hover:bg-black font-medium">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="msg-modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 opacity-0 transition-opacity duration-200">
+        <div class="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full mx-4 text-center transform scale-95 transition-transform duration-200">
+            <p id="msg-text" class="text-[#2D2D2D] mb-6 font-medium"></p>
+            <button onclick="closeMsgModal()" class="px-6 py-2 bg-[#2D2D2D] text-white rounded-lg text-sm hover:bg-black w-full font-medium">확인</button>
+        </div>
+    </div>
+
+    <!-- App Logic -->
+    <script>
+        const STORAGE_KEY = 'study_planner_local_data';
+        
+        // App State
+        let currentMode = 'child'; 
+        let currentTab = 'planner'; 
+        let weekStartDay = parseInt(localStorage.getItem('weekStartDay') || '0'); // 0: Sun, 1: Mon
+        
+        // Data Stores
+        let tasks = [];
+        let schedules = [];
+        let reviews = {};
+        
+        // Date Logic
+        const today = new Date();
+        let baseDate = new Date(today);
+        let weekDates = [];
+        let currentWeekId = ''; 
+
+        const DOM = {};
+        
+        function getFormattedDate(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+        
+        function getDisplayDate(date) {
+            const days = ['일', '월', '화', '수', '목', '금', '토'];
+            return `${date.getMonth() + 1}/${date.getDate()} (${days[date.getDay()]})`;
+        }
+
+        function calculateWeekDates(date) {
+            weekDates = [];
+            const currentDayOfWeek = date.getDay(); 
+            
+            // Adjust start day (0 or 1)
+            let diff = currentDayOfWeek - weekStartDay;
+            if (diff < 0) diff += 7;
+            
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(date);
+                d.setDate(date.getDate() - diff + i);
+                weekDates.push(d);
+            }
+            
+            const startOfWeek = weekDates[0];
+            const endOfWeek = weekDates[6];
+            currentWeekId = getFormattedDate(startOfWeek);
+            
+            const weekNumber = Math.ceil(startOfWeek.getDate() / 7);
+            const label = `${startOfWeek.getFullYear()}년 ${startOfWeek.getMonth() + 1}월 ${weekNumber}주차`;
+            const period = `(${startOfWeek.getMonth() + 1}.${startOfWeek.getDate()}~${endOfWeek.getMonth() + 1}.${endOfWeek.getDate()})`;
+            
+            document.getElementById('current-week-label').textContent = `${label} ${period}`;
+        }
+
+        function updateProgressUI() {
+            let weeklyTotal = 0;
+            let weeklyCompleted = 0;
+
+            // Update Daily Progress
+            weekDates.forEach(date => {
+                const dateStr = getFormattedDate(date);
+                const dayTasks = tasks.filter(t => t.date === dateStr);
+                const dayTotal = dayTasks.length;
+                const dayCompleted = dayTasks.filter(t => t.completed).length;
+                
+                weeklyTotal += dayTotal;
+                weeklyCompleted += dayCompleted;
+
+                const dayPercent = dayTotal === 0 ? 0 : Math.round((dayCompleted / dayTotal) * 100);
+                const dailyBar = document.getElementById(`daily-progress-${dateStr}`);
+                if (dailyBar) dailyBar.style.width = `${dayPercent}%`;
+            });
+
+            // Update Weekly Progress
+            const weeklyPercent = weeklyTotal === 0 ? 0 : Math.round((weeklyCompleted / weeklyTotal) * 100);
+            document.getElementById('weekly-progress-bar').style.width = `${weeklyPercent}%`;
+            document.getElementById('weekly-progress-text').textContent = `${weeklyPercent}%`;
+        }
+
+        function initWeeklyUI() {
+            let html = '';
+            weekDates.forEach((date, index) => {
+                const dateStr = getFormattedDate(date);
+                const displayStr = getDisplayDate(date);
+                const isToday = date.toDateString() === today.toDateString();
+                const dayIndex = date.getDay();
+                
+                let headerBg = 'bg-[#F8F6F0]';
+                if (dayIndex === 0) headerBg = 'bg-red-50 text-red-700'; // Sunday
+                if (dayIndex === 6) headerBg = 'bg-blue-50 text-blue-700'; // Saturday
+                
+                const borderClass = isToday ? 'border-2 border-[#2D2D2D] shadow-md' : 'border border-gray-200';
+
+                html += `
+                <div class="paper-card rounded-xl flex flex-col overflow-hidden ${borderClass} min-h-[350px] xl:min-h-0 xl:h-[450px]">
+                    <div class="${headerBg} p-3 border-b border-gray-200 font-bold flex justify-between items-center text-sm relative">
+                        <span>${displayStr}</span>
+                        ${isToday ? '<span class="text-[10px] bg-[#2D2D2D] text-white px-2 py-0.5 rounded-full">오늘</span>' : ''}
+                        <!-- Daily Progress Bar bg -->
+                        <div class="absolute bottom-0 left-0 w-full h-1 bg-black/5">
+                            <div id="daily-progress-${dateStr}" class="h-full bg-[#2D2D2D] transition-all duration-500 w-0"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 p-3 overflow-y-auto custom-scrollbar flex flex-col gap-2" id="tasks-${dateStr}">
+                        <!-- Tasks -->
+                    </div>
+                    
+                    <div class="p-3 border-t border-gray-100 bg-[#FAFAFA]">
+                        <form onsubmit="event.preventDefault(); addTask(this.taskInput.value, '${dateStr}'); this.reset();" class="flex gap-2">
+                            <input type="text" name="taskInput" placeholder="할 일 추가..." class="flex-1 text-sm bg-transparent border-b border-gray-300 focus:border-[#2D2D2D] focus:outline-none px-1 py-1" ${currentMode === 'parent' ? 'disabled' : ''}>
+                            <button type="submit" class="text-[#2D2D2D] hover:text-black disabled:opacity-30" ${currentMode === 'parent' ? 'disabled' : ''}>
+                                <i class="ph-fill ph-plus-circle text-xl"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                `;
+            });
+            DOM.weeklyView.innerHTML = html;
+        }
+
+        const timetableDays = ['월', '화', '수', '목', '금', '토', '일'];
+        const startHour = 8;
+        const endHour = 22;
+
+        function initTimetableUI() {
+            let html = '<div class="timetable-cell timetable-header border-b">시간</div>';
+            timetableDays.forEach(day => {
+                html += `<div class="timetable-cell timetable-header border-b">${day}</div>`;
+            });
+
+            for (let hour = startHour; hour <= endHour; hour++) {
+                html += `<div class="timetable-cell time-label">${hour}:00</div>`;
+                for (let day = 0; day < 7; day++) { // day 0 is Monday in Timetable logic
+                    html += `<div class="timetable-cell relative cursor-pointer hover:bg-gray-50 transition-colors p-1" data-day="${day}" data-hour="${hour}" onclick="openScheduleModal(${day}, ${hour})">
+                        <div id="sch-slot-${day}-${hour}" class="w-full h-full min-h-[36px] rounded text-[11px] p-1 flex items-center justify-center text-center font-medium leading-tight line-clamp-2 break-all opacity-0"></div>
+                    </div>`;
+                }
+            }
+            DOM.timetableGrid.innerHTML = html;
+
+            document.querySelectorAll('.sch-type-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.sch-type-btn').forEach(b => {
+                        b.classList.remove('bg-[#2D2D2D]', 'text-white', 'border-[#2D2D2D]');
+                        b.classList.add('border-gray-300', 'text-gray-700');
+                    });
+                    const target = e.target;
+                    target.classList.remove('border-gray-300', 'text-gray-700');
+                    target.classList.add('bg-[#2D2D2D]', 'text-white', 'border-[#2D2D2D]');
+                    document.getElementById('sch-type').value = target.dataset.type;
+                });
+            });
+        }
+
+        function loadData() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                const data = JSON.parse(stored);
+                tasks = data.tasks || [];
+                schedules = data.schedules || [];
+                reviews = data.reviews || {};
+            } else {
+                initializeMockData();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, schedules, reviews }));
+            flashSyncStatus();
+            updateProgressUI();
+        }
+
+        function initializeMockData() {
+            // Re-calculate weekDates based on current settings before creating mock data
+            calculateWeekDates(new Date()); 
+            
+            const m = (dayOffset) => getFormattedDate(weekDates[dayOffset]);
+
+            // Middle School Math & English Mock Data
+            tasks = [
+                { id: 't1', text: "[수학] 소인수분해 개념 노트 정리", date: m(1), completed: true, createdAt: 1 },
+                { id: 't2', text: "[영어] 필수 영단어 30개 암기", date: m(1), completed: true, createdAt: 2 },
+                
+                { id: 't3', text: "[수학] 소인수분해 대표 유형 풀이", date: m(2), completed: true, createdAt: 3 },
+                { id: 't4', text: "[영어] 누적 단어 복습 테스트", date: m(2), completed: true, createdAt: 4 },
+                
+                { id: 't5', text: "[수학] 정수와 유리수 개념 인강 수강", date: m(3), completed: false, createdAt: 5 },
+                { id: 't6', text: "[영어] 필수 영단어 30개 추가 암기", date: m(3), completed: false, createdAt: 6 },
+                
+                { id: 't7', text: "[수학] 정수와 유리수 기본 문제 풀이", date: m(4), completed: false, createdAt: 7 },
+                { id: 't8', text: "독서 30분 (비문학 요약)", date: m(4), completed: false, createdAt: 8 },
+                
+                { id: 't9', text: "주간 오답 노트 정리", date: m(5), completed: false, createdAt: 9 },
+                { id: 't10', text: "가족과 주말 회고 및 다음주 계획", date: m(6), completed: false, createdAt: 10 }
+            ];
+
+            schedules = [];
+            let schId = 1;
+            for(let d=0; d<5; d++) { // Mon-Fri
+                for(let h=9; h<=14; h++) { schedules.push({ id: 's'+(schId++), day: d, hour: h, title: '학교 수업', type: 'school' }); }
+            }
+            [0, 2, 4].forEach(d => { // Mon, Wed, Fri
+                schedules.push({ id: 's'+(schId++), day: d, hour: 16, title: '수학 학원', type: 'academy' });
+                schedules.push({ id: 's'+(schId++), day: d, hour: 17, title: '수학 학원', type: 'academy' });
+            });
+            [1, 3].forEach(d => { // Tue, Thu
+                schedules.push({ id: 's'+(schId++), day: d, hour: 17, title: '영어 학원', type: 'academy' });
+                schedules.push({ id: 's'+(schId++), day: d, hour: 18, title: '영어 학원', type: 'academy' });
+            });
+            for(let d=0; d<5; d++) {
+                schedules.push({ id: 's'+(schId++), day: d, hour: 20, title: '개인 학습', type: 'personal' });
+            }
+
+            reviews[currentWeekId] = {
+                childReflection: "중학교 수학 소인수분해 파트는 재밌었는데, 정수와 유리수 개념은 조금 헷갈린다. 인강을 다시 돌려봐야겠다. 영단어는 꾸준히 외우는 중!",
+                parentReview: "벌써 중등 수학을 예습하다니 대단해! 정수와 음수 개념은 처음엔 다들 낯설어하니 조급해하지 말고 천천히 복습해보자. 아빠가 주말에 같이 봐줄게."
+            };
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, schedules, reviews }));
+        }
+
+        window.changeWeek = function(offset) {
+            baseDate.setDate(baseDate.getDate() + (offset * 7));
+            refreshViews();
+        };
+
+        window.goToToday = function() {
+            baseDate = new Date();
+            refreshViews();
+        };
+
+        window.setStartDay = function(day) {
+            weekStartDay = day;
+            localStorage.setItem('weekStartDay', day);
+            
+            // Update toggle UI
+            const btnSun = document.getElementById('btn-start-sun');
+            const btnMon = document.getElementById('btn-start-mon');
+            
+            if (day === 0) {
+                btnSun.classList.replace('text-gray-500', 'text-white');
+                btnSun.classList.replace('hover:text-black', 'bg-[#2D2D2D]');
+                btnSun.classList.add('shadow-sm');
+                btnMon.classList.replace('text-white', 'text-gray-500');
+                btnMon.classList.replace('bg-[#2D2D2D]', 'hover:text-black');
+                btnMon.classList.remove('shadow-sm');
+            } else {
+                btnMon.classList.replace('text-gray-500', 'text-white');
+                btnMon.classList.replace('hover:text-black', 'bg-[#2D2D2D]');
+                btnMon.classList.add('shadow-sm');
+                btnSun.classList.replace('text-white', 'text-gray-500');
+                btnSun.classList.replace('bg-[#2D2D2D]', 'hover:text-black');
+                btnSun.classList.remove('shadow-sm');
+            }
+            refreshViews();
+        };
+
+        function refreshViews() {
+            calculateWeekDates(baseDate);
+            initWeeklyUI();
+            updateReviewUI();
+            renderTasks();
+            renderSchedules();
+            updateProgressUI();
+            setMode(currentMode); 
+        }
+
+        function updateReviewUI() {
+            const reviewData = reviews[currentWeekId] || { childReflection: '', parentReview: '' };
+            DOM.taChildReflection.value = reviewData.childReflection;
+            DOM.taParentReview.value = reviewData.parentReview;
+        }
+
+        function renderTasks() {
+            weekDates.forEach(date => {
+                const dateStr = getFormattedDate(date);
+                const container = document.getElementById(`tasks-${dateStr}`);
+                if (!container) return;
+                
+                container.innerHTML = '';
+                const dayTasks = tasks.filter(t => t.date === dateStr).sort((a, b) => a.createdAt - b.createdAt);
+                
+                if (dayTasks.length === 0) {
+                    container.innerHTML = '<div class="text-[11px] text-gray-400 italic text-center mt-6">일정 없음</div>';
+                } else {
+                    dayTasks.forEach(task => {
+                        const isChild = currentMode === 'child';
+                        const checked = task.completed ? 'checked' : '';
+                        const textStyle = task.completed ? 'line-through text-gray-400' : 'text-[#2D2D2D] font-medium';
+                        
+                        container.innerHTML += `
+                            <div class="flex items-start gap-2 p-1.5 hover:bg-gray-50 rounded transition-colors group">
+                                <input type="checkbox" class="custom-checkbox mt-0.5 shrink-0" 
+                                    ${checked} 
+                                    ${!isChild ? 'disabled' : ''} 
+                                    onchange="toggleTask('${task.id}', this.checked)">
+                                <span class="text-xs flex-1 break-all ${textStyle} leading-tight pt-0.5">${task.text}</span>
+                                ${isChild ? `<button onclick="deleteTask('${task.id}')" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"><i class="ph ph-trash"></i></button>` : ''}
+                            </div>
+                        `;
+                    });
+                }
+            });
+            updateProgressUI();
+        }
+
+        function renderSchedules() {
+            for (let hour = startHour; hour <= endHour; hour++) {
+                for (let day = 0; day < 7; day++) {
+                    const slot = document.getElementById(`sch-slot-${day}-${hour}`);
+                    if (slot) {
+                        slot.className = 'w-full h-full min-h-[36px] rounded text-[11px] p-1 flex items-center justify-center text-center font-medium leading-tight line-clamp-2 break-all opacity-0';
+                        slot.textContent = '';
+                        slot.removeAttribute('data-id');
+                    }
+                }
+            }
+
+            schedules.forEach(sch => {
+                const slot = document.getElementById(`sch-slot-${sch.day}-${sch.hour}`);
+                if (slot) {
+                    slot.textContent = sch.title;
+                    slot.setAttribute('data-id', sch.id);
+                    slot.classList.remove('opacity-0');
+                    if (sch.type === 'school') slot.classList.add('sch-school');
+                    else if (sch.type === 'academy') slot.classList.add('sch-academy');
+                    else if (sch.type === 'personal') slot.classList.add('sch-personal');
+                }
+            });
+        }
+
+        window.addTask = function(text, dateStr) {
+            if (!text.trim() || currentMode === 'parent') return;
+            tasks.push({
+                id: Date.now() + '',
+                text: text.trim(),
+                date: dateStr,
+                completed: false,
+                createdAt: Date.now()
+            });
+            saveData();
+            renderTasks();
+        };
+
+        window.toggleTask = function(id, completed) {
+            if (currentMode === 'parent') return;
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.completed = completed;
+                saveData();
+                renderTasks();
+            }
+        };
+
+        window.deleteTask = function(id) {
+            if (currentMode === 'parent') return;
+            tasks = tasks.filter(t => t.id !== id);
+            saveData();
+            renderTasks();
+        };
+
+        window.saveSchedule = function() {
+            if (currentMode === 'parent') {
+                showModal("학생 모드에서만 시간표를 수정할 수 있습니다.");
+                return;
+            }
+
+            const title = document.getElementById('sch-title').value.trim();
+            const type = document.getElementById('sch-type').value;
+            const day = parseInt(document.getElementById('sch-day').value);
+            const hour = parseInt(document.getElementById('sch-hour').value);
+            const id = document.getElementById('sch-id').value;
+
+            if (!title) { showModal("일정 이름을 입력해주세요."); return; }
+
+            if (id) {
+                const sch = schedules.find(s => s.id === id);
+                if(sch) { sch.title = title; sch.type = type; }
+            } else {
+                schedules.push({ id: Date.now() + '', title, type, day, hour });
+            }
+            
+            saveData();
+            renderSchedules();
+            closeScheduleModal();
+        };
+
+        window.deleteScheduleFromModal = function() {
+            const id = document.getElementById('sch-id').value;
+            if (!id || currentMode === 'parent') return;
+            
+            schedules = schedules.filter(s => s.id !== id);
+            saveData();
+            renderSchedules();
+            closeScheduleModal();
+        };
+
+        let debounceTimer;
+        function setupReviewListener() {
+            const saveReview = () => {
+                if (!reviews[currentWeekId]) reviews[currentWeekId] = { childReflection: '', parentReview: '' };
+                reviews[currentWeekId].childReflection = DOM.taChildReflection.value;
+                reviews[currentWeekId].parentReview = DOM.taParentReview.value;
+                saveData();
+            };
+
+            const triggerSave = () => {
+                clearTimeout(debounceTimer);
+                DOM.syncIcon.style.display = 'inline-block';
+                DOM.syncStatus.textContent = '저장 중...';
+                DOM.syncStatus.classList.remove('text-green-600');
+                debounceTimer = setTimeout(saveReview, 800);
+            };
+
+            DOM.taParentReview.addEventListener('input', triggerSave);
+            DOM.taChildReflection.addEventListener('input', triggerSave);
+        }
+
+        window.switchTab = function(tabId) {
+            currentTab = tabId;
+            if (tabId === 'planner') {
+                DOM.tabPlanner.classList.replace('border-transparent', 'border-[#2D2D2D]');
+                DOM.tabPlanner.classList.replace('text-gray-400', 'text-[#2D2D2D]');
+                DOM.tabTimetable.classList.replace('border-[#2D2D2D]', 'border-transparent');
+                DOM.tabTimetable.classList.replace('text-[#2D2D2D]', 'text-gray-400');
+                
+                DOM.viewPlanner.classList.remove('hidden'); DOM.viewPlanner.classList.add('flex');
+                DOM.viewTimetable.classList.remove('flex'); DOM.viewTimetable.classList.add('hidden');
+            } else {
+                DOM.tabTimetable.classList.replace('border-transparent', 'border-[#2D2D2D]');
+                DOM.tabTimetable.classList.replace('text-gray-400', 'text-[#2D2D2D]');
+                DOM.tabPlanner.classList.replace('border-[#2D2D2D]', 'border-transparent');
+                DOM.tabPlanner.classList.replace('text-[#2D2D2D]', 'text-gray-400');
+                
+                DOM.viewTimetable.classList.remove('hidden'); DOM.viewTimetable.classList.add('flex');
+                DOM.viewPlanner.classList.remove('flex'); DOM.viewPlanner.classList.add('hidden');
+            }
+        };
+
+        window.setMode = function(mode) {
+            currentMode = mode;
+            if (mode === 'child') {
+                DOM.btnModeChild.classList.replace('text-gray-500', 'text-white');
+                DOM.btnModeChild.classList.replace('hover:text-black', 'bg-[#2D2D2D]');
+                DOM.btnModeChild.classList.add('shadow-sm');
+                
+                DOM.btnModeParent.classList.replace('text-white', 'text-gray-500');
+                DOM.btnModeParent.classList.replace('bg-[#2D2D2D]', 'hover:text-black');
+                DOM.btnModeParent.classList.remove('shadow-sm');
+                
+                document.querySelectorAll('input[name="taskInput"]').forEach(el => {
+                    el.disabled = false; el.nextElementSibling.disabled = false;
+                });
+                
+                DOM.taChildReflection.disabled = false;
+                DOM.taChildReflection.classList.add('bg-white');
+                DOM.taChildReflection.classList.remove('bg-gray-50', 'bg-transparent');
+                
+                DOM.taParentReview.disabled = true;
+                DOM.taParentReview.classList.remove('bg-white', 'bg-transparent');
+                DOM.taParentReview.classList.add('bg-gray-50');
+                
+            } else {
+                DOM.btnModeParent.classList.replace('text-gray-500', 'text-white');
+                DOM.btnModeParent.classList.replace('hover:text-black', 'bg-[#2D2D2D]');
+                DOM.btnModeParent.classList.add('shadow-sm');
+                
+                DOM.btnModeChild.classList.replace('text-white', 'text-gray-500');
+                DOM.btnModeChild.classList.replace('bg-[#2D2D2D]', 'hover:text-black');
+                DOM.btnModeChild.classList.remove('shadow-sm');
+                
+                document.querySelectorAll('input[name="taskInput"]').forEach(el => {
+                    el.disabled = true; el.nextElementSibling.disabled = true;
+                });
+                
+                DOM.taChildReflection.disabled = true;
+                DOM.taChildReflection.classList.remove('bg-white', 'bg-transparent');
+                DOM.taChildReflection.classList.add('bg-gray-50');
+                
+                DOM.taParentReview.disabled = false;
+                DOM.taParentReview.classList.add('bg-white');
+                DOM.taParentReview.classList.remove('bg-gray-50', 'bg-transparent');
+            }
+            renderTasks();
+        };
+
+        window.openScheduleModal = function(day, hour) {
+            if (currentMode === 'parent') {
+                showModal("학생 모드에서만 시간표를 수정할 수 있습니다.");
+                return;
+            }
+
+            const slot = document.getElementById(`sch-slot-${day}-${hour}`);
+            const id = slot ? slot.getAttribute('data-id') : null;
+            
+            document.getElementById('sch-day').value = day;
+            document.getElementById('sch-hour').value = hour;
+            document.getElementById('sch-id').value = id || '';
+            
+            const titleInput = document.getElementById('sch-title');
+            const typeInput = document.getElementById('sch-type');
+            const delBtn = document.getElementById('btn-delete-sch');
+
+            if (id) {
+                const sch = schedules.find(s => s.id === id);
+                titleInput.value = sch.title; typeInput.value = sch.type;
+                delBtn.classList.remove('hidden');
+            } else {
+                titleInput.value = ''; typeInput.value = 'school';
+                delBtn.classList.add('hidden');
+            }
+
+            document.querySelectorAll('.sch-type-btn').forEach(b => {
+                b.classList.remove('bg-[#2D2D2D]', 'text-white', 'border-[#2D2D2D]');
+                b.classList.add('border-gray-300', 'text-gray-700');
+                if (b.dataset.type === typeInput.value) {
+                    b.classList.remove('border-gray-300', 'text-gray-700');
+                    b.classList.add('bg-[#2D2D2D]', 'text-white', 'border-[#2D2D2D]');
+                }
+            });
+
+            const modal = document.getElementById('schedule-modal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0'); modal.children[0].classList.remove('scale-95');
+                titleInput.focus();
+            }, 10);
+        };
+
+        window.closeScheduleModal = function() {
+            const modal = document.getElementById('schedule-modal');
+            modal.classList.add('opacity-0'); modal.children[0].classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+        };
+
+        window.showModal = function(msg) {
+            const modal = document.getElementById('msg-modal');
+            document.getElementById('msg-text').textContent = msg;
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0'); modal.children[0].classList.remove('scale-95');
+            }, 10);
+        };
+
+        window.closeMsgModal = function() {
+            const modal = document.getElementById('msg-modal');
+            modal.classList.add('opacity-0'); modal.children[0].classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+        };
+
+        function flashSyncStatus() {
+            DOM.syncIcon.style.display = 'inline-block';
+            DOM.syncStatus.textContent = '저장 완료';
+            DOM.syncStatus.classList.add('text-green-600');
+            
+            setTimeout(() => {
+                DOM.syncIcon.style.display = 'none';
+                DOM.syncStatus.textContent = '자동 저장됨';
+                DOM.syncStatus.classList.remove('text-green-600');
+            }, 2000);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            DOM.btnModeChild = document.getElementById('btn-mode-child');
+            DOM.btnModeParent = document.getElementById('btn-mode-parent');
+            DOM.tabPlanner = document.getElementById('tab-planner');
+            DOM.tabTimetable = document.getElementById('tab-timetable');
+            DOM.viewPlanner = document.getElementById('view-planner');
+            DOM.viewTimetable = document.getElementById('view-timetable');
+            DOM.weeklyView = document.getElementById('weekly-view');
+            DOM.timetableGrid = document.getElementById('timetable-grid');
+            DOM.taChildReflection = document.getElementById('ta-child-reflection');
+            DOM.taParentReview = document.getElementById('ta-parent-review');
+            DOM.syncIcon = document.getElementById('sync-icon');
+            DOM.syncStatus = document.getElementById('sync-status');
+            
+            document.getElementById('btn-delete-sch').addEventListener('click', deleteScheduleFromModal);
+
+            // Init Start Day Toggle State
+            setStartDay(weekStartDay);
+
+            loadData();
+            refreshViews();
+            setupReviewListener();
+        });
+
+    </script>
+</body>
+</html>
