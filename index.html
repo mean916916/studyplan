@@ -3,814 +3,1490 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>학습 코칭 플래너</title>
+    <title>주간 학습 플래너</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --paper-bg: #F5F3EE;
+            --card-bg: #FFFFFF;
+            --ink-primary: #222222;
+            --ink-secondary: #5C5C5C;
+            --ink-muted: #999999;
+            --border-paper: #E5E2DC;
+        }
+
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #F4F2EC; 
-            color: #2D2D2D; 
+            font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--paper-bg);
+            color: var(--ink-primary);
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
         }
-        
+
+        /* 넉넉한 전체 컨테이너 폭 */
+        .app-container {
+            width: 96%;
+            max-width: 1440px;
+            margin: 0 auto;
+        }
+
+        /* 미니멀 종이 플래너 카드 */
         .paper-card {
-            background-color: #FFFFFF;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            border: 1px solid #E5E2DC;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-paper);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
         }
 
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #F4F2EC; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #D4D4D4; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #A3A3A3; }
+        /* 주간 플래너 그리드 - 기본: 넓게 보기 (2줄 카드형) */
+        .weekly-grid-wide {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
 
+        @media (min-width: 768px) {
+            .weekly-grid-wide {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .weekly-grid-wide {
+                grid-template-columns: repeat(4, minmax(280px, 1fr));
+            }
+        }
+
+        /* 주간 플래너 그리드 - 7일 한줄 (가로 스크롤) */
+        .weekly-grid-scroll-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .weekly-grid-single-row {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(220px, 1fr));
+            gap: 0.85rem;
+            min-width: 1620px;
+        }
+
+        /* 한글 가독성 보장 텍스트 스타일 */
+        .readable-text {
+            word-break: keep-all;
+            overflow-wrap: break-word;
+            line-height: 1.5;
+        }
+
+        /* 할 일 행 레이아웃 */
+        .task-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+        }
+
+        .task-text-area {
+            flex: 1;
+            min-width: 0;
+            word-break: keep-all;
+            overflow-wrap: break-word;
+            line-height: 1.5;
+        }
+
+        /* 커스텀 체크박스 */
         .custom-checkbox {
-            appearance: none; width: 1.25rem; height: 1.25rem;
-            border: 2px solid #D4D4D4; border-radius: 0.25rem;
-            background-color: white; display: grid; place-content: center;
-            cursor: pointer; transition: all 0.2s ease-in-out;
+            appearance: none;
+            width: 1.15rem;
+            height: 1.15rem;
+            min-width: 1.15rem;
+            border: 1.8px solid #BDBDBD;
+            border-radius: 0.25rem;
+            background-color: #FFFFFF;
+            display: grid;
+            place-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            margin-top: 0.2rem;
         }
+
         .custom-checkbox::before {
-            content: ""; width: 0.65em; height: 0.65em;
-            transform: scale(0); transition: 120ms transform ease-in-out;
-            box-shadow: inset 1em 1em #2D2D2D; background-color: #2D2D2D;
-            transform-origin: center;
+            content: "";
+            width: 0.62em;
+            height: 0.62em;
+            transform: scale(0);
+            transition: 120ms transform ease-in-out;
+            background-color: #222222;
             clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
         }
-        .custom-checkbox:checked { border-color: #2D2D2D; }
-        .custom-checkbox:checked::before { transform: scale(1); }
-        .custom-checkbox:disabled { cursor: not-allowed; opacity: 0.6; }
 
-        .timetable-grid {
-            display: grid; grid-template-columns: 60px repeat(7, minmax(100px, 1fr));
-            border-top: 1px solid #E5E2DC; border-left: 1px solid #E5E2DC;
+        .custom-checkbox:checked {
+            border-color: #222222;
         }
+
+        .custom-checkbox:checked::before {
+            transform: scale(1);
+        }
+
+        .custom-checkbox:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        /* 커스텀 스크롤바 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 7px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #EFECE6;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #CCCCCC;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #999999;
+        }
+
+        /* 시간표 그리드 */
+        .timetable-grid {
+            display: grid;
+            grid-template-columns: 68px repeat(7, minmax(120px, 1fr));
+            border-top: 1px solid var(--border-paper);
+            border-left: 1px solid var(--border-paper);
+        }
+
         .timetable-cell {
-            border-right: 1px solid #E5E2DC; border-bottom: 1px solid #E5E2DC;
+            border-right: 1px solid var(--border-paper);
+            border-bottom: 1px solid var(--border-paper);
             min-height: 48px;
         }
+
         .timetable-header {
-            background-color: #F8F6F0; font-weight: 600; text-align: center;
-            padding: 8px 4px; font-size: 0.875rem; color: #555555;
+            background-color: #F8F6F1;
+            font-weight: 600;
+            text-align: center;
+            padding: 10px 6px;
+            font-size: 0.875rem;
+            color: #444444;
         }
+
         .time-label {
-            text-align: center; font-size: 0.75rem; color: #999999;
-            padding-top: 8px; background-color: #FDFBF7;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #888888;
+            padding-top: 10px;
+            background-color: #FCFBF8;
+            font-variant-numeric: tabular-nums;
         }
-        
-        .sch-school { background-color: #FFFFFF; color: #2D2D2D; border: 2px dashed #D4D4D4; }
-        .sch-academy { background-color: #E5E5E5; color: #2D2D2D; border: 1px solid #D4D4D4; }
-        .sch-personal { background-color: #FFFFFF; color: #2D2D2D; border: 2px solid #2D2D2D; }
-        
-        .animate-spin-slow { animation: spin 3s linear infinite; }
+
+        /* 시간표 카테고리 3종 모노톤 스타일 */
+        .sch-school {
+            background-color: #FFFFFF;
+            color: #222222;
+            border: 1.5px dashed #A3A3A3;
+        }
+        .sch-academy {
+            background-color: #E5E5E5;
+            color: #1F1F1F;
+            border: 1px solid #CFCFCF;
+        }
+        .sch-personal {
+            background-color: #FFFFFF;
+            color: #111111;
+            border: 2px solid #222222;
+            font-weight: 600;
+        }
     </style>
 </head>
-<body class="min-h-screen p-3 md:p-6 flex flex-col items-center">
+<body class="min-h-screen pb-10">
 
-    <div class="w-full max-w-7xl flex flex-col gap-5">
-        
-        <!-- Header (Fixed at top layout) -->
-        <header class="w-full paper-card p-4 rounded-xl flex flex-col xl:flex-row justify-between items-center gap-4">
-            <!-- Left: Title & Navigation -->
-            <div class="flex flex-col md:flex-row items-center gap-4 w-full xl:w-auto">
-                <h1 class="text-2xl font-bold tracking-tight whitespace-nowrap"><i class="ph-fill ph-notebook text-[#2D2D2D]"></i> 학습 코칭 플래너</h1>
-                <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 px-2 py-1 rounded-lg">
-                    <button class="p-1 rounded hover:bg-gray-200 transition text-gray-600" onclick="changeWeek(-1)"><i class="ph ph-caret-left"></i></button>
-                    <span id="current-week-label" class="text-sm font-bold text-[#2D2D2D] w-[220px] text-center">...</span>
-                    <button class="p-1 rounded hover:bg-gray-200 transition text-gray-600" onclick="changeWeek(1)"><i class="ph ph-caret-right"></i></button>
-                    <button class="ml-1 px-3 py-1 bg-white border border-gray-300 rounded text-xs font-bold hover:bg-gray-100 transition shadow-sm" onclick="goToToday()">오늘</button>
+    <!-- 상단 고정 헤더바 -->
+    <header class="sticky top-0 z-30 bg-[#F5F3EE]/95 backdrop-blur-sm border-b border-[#E5E2DC] py-3 mb-5">
+        <div class="app-container flex flex-col lg:flex-row justify-between items-center gap-3">
+            <!-- 좌측: 앱 제목 -->
+            <div class="flex items-center justify-between w-full lg:w-auto gap-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-lg bg-[#222222] text-white flex items-center justify-center shadow-sm">
+                        <i class="ph-fill ph-notebook text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-bold tracking-tight text-[#222222] leading-tight">주간 학습 플래너</h1>
+                        <p class="text-[11px] text-[#777777]">스스로 세우는 목표 · 1:1 학습 코칭</p>
+                    </div>
                 </div>
+                <!-- 모바일용 동기화 배지 -->
+                <span id="sync-badge-mobile" class="lg:hidden inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-white border border-[#E5E2DC] text-[#555555]">
+                    <span class="w-2 h-2 rounded-full bg-gray-400 sync-dot"></span>
+                    <span class="sync-label">연결 중...</span>
+                </span>
             </div>
-            
-            <!-- Right: Toggles -->
-            <div class="flex flex-wrap items-center justify-center gap-3 w-full xl:w-auto">
-                <!-- Start Day Toggle -->
-                <div class="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200 text-sm font-medium">
-                    <button id="btn-start-sun" class="px-3 py-1.5 rounded-md transition-all bg-[#2D2D2D] text-white shadow-sm" onclick="setStartDay(0)">일 시작</button>
-                    <button id="btn-start-mon" class="px-3 py-1.5 rounded-md transition-all text-gray-500 hover:text-black" onclick="setStartDay(1)">월 시작</button>
-                </div>
-                
-                <!-- Mode Toggle -->
-                <div class="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200 text-sm font-medium">
-                    <button id="btn-mode-child" class="px-3 py-1.5 rounded-md transition-all bg-[#2D2D2D] text-white shadow-sm flex items-center gap-1" onclick="setMode('child')">
+
+            <!-- 중앙/우측: 탭 전환, 모드 전환, 공유 코드, 동기화 상태 -->
+            <div class="flex flex-wrap items-center justify-center lg:justify-end gap-2.5 w-full lg:w-auto">
+                <!-- 탭 전환 -->
+                <nav class="flex items-center bg-[#EAE7DF] p-1 rounded-lg border border-[#DFDCD4] text-xs sm:text-sm font-medium">
+                    <button id="tab-planner" onclick="switchTab('planner')" class="px-3.5 py-1.5 rounded-md bg-white text-[#222222] shadow-sm font-semibold transition-all flex items-center gap-1.5">
+                        <i class="ph ph-check-square-offset"></i> 주간 플래너
+                    </button>
+                    <button id="tab-timetable" onclick="switchTab('timetable')" class="px-3.5 py-1.5 rounded-md text-[#666666] hover:text-[#222222] transition-all flex items-center gap-1.5">
+                        <i class="ph ph-calendar-blank"></i> 시간표
+                    </button>
+                </nav>
+
+                <!-- 모드 전환 -->
+                <div class="flex items-center bg-[#EAE7DF] p-1 rounded-lg border border-[#DFDCD4] text-xs sm:text-sm font-medium">
+                    <button id="btn-mode-child" onclick="setMode('child')" class="px-3 py-1.5 rounded-md bg-[#222222] text-white shadow-sm transition-all flex items-center gap-1">
                         <i class="ph ph-student"></i> 자녀 모드
                     </button>
-                    <button id="btn-mode-parent" class="px-3 py-1.5 rounded-md transition-all text-gray-500 hover:text-black flex items-center gap-1" onclick="setMode('parent')">
+                    <button id="btn-mode-parent" onclick="setMode('parent')" class="px-3 py-1.5 rounded-md text-[#666666] hover:text-[#222222] transition-all flex items-center gap-1">
                         <i class="ph ph-chalkboard-teacher"></i> 코치 모드
                     </button>
                 </div>
-            </div>
-        </header>
 
-        <!-- Tabs -->
-        <div class="flex gap-6 border-b border-gray-300 px-2">
-            <button id="tab-planner" class="pb-3 border-b-2 border-[#2D2D2D] font-bold text-[#2D2D2D] transition-colors" onclick="switchTab('planner')">주간 플래너</button>
-            <button id="tab-timetable" class="pb-3 border-b-2 border-transparent text-gray-400 hover:text-[#2D2D2D] font-medium transition-colors" onclick="switchTab('timetable')">시간표</button>
-        </div>
+                <!-- 공유 코드 버튼 -->
+                <button onclick="openRoomModal()" class="px-3 py-2 rounded-lg bg-white border border-[#D8D4CC] hover:border-[#222222] text-xs sm:text-sm font-medium text-[#222222] transition-all flex items-center gap-1.5 shadow-sm">
+                    <i class="ph ph-link-simple"></i>
+                    <span>공유 코드</span>
+                </button>
 
-        <!-- View: Planner -->
-        <div id="view-planner" class="flex flex-col gap-4">
-            
-            <!-- Weekly Progress -->
-            <div class="paper-card rounded-xl p-4 flex items-center gap-4">
-                <div class="whitespace-nowrap font-bold text-sm text-[#2D2D2D] flex items-center gap-1">
-                    <i class="ph-fill ph-target"></i> 이번 주 달성률
+                <!-- 데스크톱 동기화 상태 배지 -->
+                <div id="sync-badge-desktop" class="hidden lg:inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-white border border-[#E5E2DC] text-[#555555]" title="데이터 동기화 상태">
+                    <span class="w-2 h-2 rounded-full bg-gray-400 sync-dot"></span>
+                    <span class="sync-label">연결 중...</span>
                 </div>
-                <div class="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden shadow-inner">
-                    <div id="weekly-progress-bar" class="h-full bg-[#2D2D2D] transition-all duration-700 w-0"></div>
-                </div>
-                <div id="weekly-progress-text" class="whitespace-nowrap font-bold text-sm text-gray-500 w-10 text-right">0%</div>
-            </div>
-
-            <div class="flex flex-col xl:flex-row gap-5">
-                <!-- Weekly Grid -->
-                <div id="weekly-view" class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-                    <!-- Dynamically generated by JS -->
-                </div>
-
-                <!-- Weekly Review (Sidebar) -->
-                <aside class="w-full xl:w-80 flex flex-col gap-4">
-                    <div class="paper-card p-5 rounded-xl flex flex-col h-full gap-4">
-                        <div class="flex-1 flex flex-col min-h-[160px]">
-                            <h2 class="text-sm font-bold flex items-center gap-2 mb-2 border-b border-gray-200 pb-2 text-[#2D2D2D]">
-                                <i class="ph-fill ph-user"></i> 자녀의 한 주 돌아보기
-                            </h2>
-                            <textarea id="ta-child-reflection" class="w-full flex-1 border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#2D2D2D] resize-none bg-transparent" placeholder="이번 주 학습은 어땠나요? 스스로 평가해보세요."></textarea>
-                        </div>
-                        <div class="flex-1 flex flex-col min-h-[160px]">
-                            <h2 class="text-sm font-bold flex items-center gap-2 mb-2 border-b border-gray-200 pb-2 text-[#2D2D2D]">
-                                <i class="ph-fill ph-chat-circle-text"></i> 부모님 코멘트
-                            </h2>
-                            <textarea id="ta-parent-review" class="w-full flex-1 border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#2D2D2D] resize-none bg-transparent" placeholder="자녀를 위한 격려와 피드백을 남겨주세요." disabled></textarea>
-                        </div>
-                        <div class="mt-1 pt-2 border-t border-gray-200 text-xs text-gray-400 flex items-center gap-2 justify-end">
-                            <i class="ph ph-arrows-clockwise inline-block animate-spin-slow" id="sync-icon" style="display:none;"></i> 
-                            <span id="sync-status">자동 저장됨</span>
-                        </div>
-                    </div>
-                </aside>
             </div>
         </div>
+    </header>
 
-        <!-- View: Timetable -->
-        <div id="view-timetable" class="hidden flex-col gap-4 mb-4">
-            <div class="paper-card rounded-xl overflow-hidden">
-                <div class="p-4 border-b border-gray-200 flex flex-wrap justify-between items-center bg-white gap-3">
-                    <h2 class="text-lg font-bold flex items-center gap-2 text-[#2D2D2D]">
-                        <i class="ph-fill ph-calendar-blank"></i> 고정 스케줄 시간표
-                    </h2>
-                    <div class="flex gap-4 text-xs font-medium bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-                        <span class="flex items-center gap-1.5"><div class="w-3.5 h-3.5 sch-school rounded-sm"></div>학교 수업</span>
-                        <span class="flex items-center gap-1.5"><div class="w-3.5 h-3.5 sch-academy rounded-sm"></div>학원</span>
-                        <span class="flex items-center gap-1.5"><div class="w-3.5 h-3.5 sch-personal rounded-sm"></div>개인학습</span>
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="app-container flex flex-col gap-5">
+
+        <!-- 주간 이동 및 설정 바 -->
+        <section class="paper-card rounded-xl p-3.5 sm:p-4 flex flex-col xl:flex-row justify-between items-center gap-3.5">
+            <!-- 주차 네비게이션 -->
+            <div class="flex items-center gap-2 flex-wrap justify-center">
+                <div class="flex items-center bg-[#F8F6F1] border border-[#E5E2DC] rounded-lg p-1">
+                    <button onclick="changeWeek(-1)" class="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-[#444444] transition" aria-label="이전 주">
+                        <i class="ph ph-caret-left text-base"></i>
+                    </button>
+                    <span id="current-week-label" class="px-3 text-sm sm:text-base font-bold text-[#222222] min-w-[230px] text-center tracking-tight">
+                        날짜 계산 중...
+                    </span>
+                    <button onclick="changeWeek(1)" class="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-[#444444] transition" aria-label="다음 주">
+                        <i class="ph ph-caret-right text-base"></i>
+                    </button>
+                </div>
+                <button onclick="goToToday()" class="px-3.5 py-2 bg-white border border-[#D4D0C8] hover:border-[#222222] rounded-lg text-xs sm:text-sm font-semibold text-[#222222] transition shadow-sm">
+                    오늘
+                </button>
+            </div>
+
+            <!-- 우측 설정 토글 (시작 요일 / 보기 방식) -->
+            <div class="flex flex-wrap items-center justify-center gap-2.5">
+                <!-- 시작 요일 토글 -->
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-medium text-[#777777] hidden sm:inline">시작 요일</span>
+                    <div class="flex items-center bg-[#F2EFE9] p-1 rounded-lg border border-[#E5E2DC] text-xs font-medium">
+                        <button id="btn-start-sun" onclick="setStartDay(0)" class="px-2.5 py-1.5 rounded-md bg-[#222222] text-white transition-all">일요일</button>
+                        <button id="btn-start-mon" onclick="setStartDay(1)" class="px-2.5 py-1.5 rounded-md text-[#666666] hover:text-[#222222] transition-all">월요일</button>
                     </div>
                 </div>
+
+                <!-- 보기 방식 토글 (주간 플래너 탭에서만 표시) -->
+                <div id="view-layout-control" class="flex items-center gap-1.5">
+                    <span class="text-xs font-medium text-[#777777] hidden sm:inline">보기</span>
+                    <div class="flex items-center bg-[#F2EFE9] p-1 rounded-lg border border-[#E5E2DC] text-xs font-medium">
+                        <button id="btn-layout-wide" onclick="setLayoutMode('wide')" class="px-2.5 py-1.5 rounded-md bg-[#222222] text-white transition-all flex items-center gap-1">
+                            <i class="ph ph-squares-four"></i> 넓게 보기(2줄)
+                        </button>
+                        <button id="btn-layout-row" onclick="setLayoutMode('row')" class="px-2.5 py-1.5 rounded-md text-[#666666] hover:text-[#222222] transition-all flex items-center gap-1">
+                            <i class="ph ph-columns"></i> 7일 한줄
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VIEW 1: 주간 플래너 ==================== -->
+        <div id="view-planner" class="flex flex-col gap-5">
+
+            <!-- 주간 전체 달성률 바 -->
+            <section class="paper-card rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+                <div class="flex items-center justify-between sm:justify-start gap-2 min-w-fit">
+                    <span class="font-bold text-sm text-[#222222] flex items-center gap-1.5">
+                        <i class="ph-fill ph-target text-base"></i> 이번 주 전체 달성률
+                    </span>
+                    <span id="weekly-progress-count-mobile" class="sm:hidden text-xs font-semibold text-[#555555]">0 / 0 완료 (0%)</span>
+                </div>
+                <div class="flex-1 h-3 bg-[#EFECE6] rounded-full overflow-hidden">
+                    <div id="weekly-progress-bar" class="h-full bg-[#222222] rounded-full transition-all duration-500" style="width: 0%;"></div>
+                </div>
+                <div class="hidden sm:flex items-center gap-2.5 min-w-fit">
+                    <span id="weekly-progress-count" class="text-xs font-medium text-[#666666] bg-[#F5F3EE] px-2.5 py-1 rounded-md">0 / 0 완료</span>
+                    <span id="weekly-progress-percent" class="text-base font-bold text-[#222222] w-11 text-right">0%</span>
+                </div>
+            </section>
+
+            <!-- 7일 요일 카드 컨테이너 -->
+            <section id="weekly-scroll-container" class="custom-scrollbar">
+                <div id="weekly-grid" class="weekly-grid-wide">
+                    <!-- JS로 동적 생성 -->
+                </div>
+            </section>
+
+            <!-- 하단 1:1 주간 회고 영역 (PC 좌우 2단 배치) -->
+            <section class="paper-card rounded-xl p-5 sm:p-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 mb-5 border-b border-[#E5E2DC]">
+                    <div>
+                        <h2 class="text-base sm:text-lg font-bold text-[#222222] flex items-center gap-2">
+                            <i class="ph-fill ph-chats-circle text-xl"></i> 1:1 주간 회고 (Weekly Review)
+                        </h2>
+                        <p class="text-xs text-[#777777] mt-0.5 readable-text">한 주를 마무리하며 자녀의 스스로 평가와 코치(부모님)의 따뜻한 피드백을 기록합니다.</p>
+                    </div>
+                    <span id="review-save-status" class="text-xs text-[#888888] flex items-center gap-1 self-end sm:self-center">
+                        <i class="ph ph-check-circle"></i> 자동 저장
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <!-- 좌측: 자녀의 한 주 돌아보기 -->
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <label for="ta-child-reflection" class="text-sm font-bold text-[#222222] flex items-center gap-1.5">
+                                <i class="ph-fill ph-student text-base"></i> 자녀의 한 주 돌아보기
+                            </label>
+                            <span id="badge-child-edit" class="text-[11px] px-2 py-0.5 rounded bg-[#222222] text-white font-medium">작성 가능</span>
+                        </div>
+                        <textarea id="ta-child-reflection" rows="5"
+                            class="w-full rounded-xl border border-[#DCD8D0] p-3.5 text-sm text-[#222222] focus:outline-none focus:border-[#222222] focus:ring-1 focus:ring-[#222222] resize-y readable-text transition-colors"
+                            placeholder="이번 주에 잘한 점, 아쉬웠던 점, 다음 주에 보완하고 싶은 목표를 자유롭게 적어보세요."></textarea>
+                    </div>
+
+                    <!-- 우측: 코치(부모님)의 피드백 -->
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <label for="ta-parent-review" class="text-sm font-bold text-[#222222] flex items-center gap-1.5">
+                                <i class="ph-fill ph-chalkboard-teacher text-base"></i> 코치(부모님)의 피드백
+                            </label>
+                            <span id="badge-parent-edit" class="text-[11px] px-2 py-0.5 rounded bg-[#EAE7DF] text-[#666666] font-medium">읽기 전용</span>
+                        </div>
+                        <textarea id="ta-parent-review" rows="5" disabled
+                            class="w-full rounded-xl border border-[#DCD8D0] p-3.5 text-sm text-[#222222] bg-[#F8F6F1] focus:outline-none focus:border-[#222222] focus:ring-1 focus:ring-[#222222] resize-y readable-text transition-colors"
+                            placeholder="자녀의 노력에 대한 칭찬과 다음 주를 위한 따뜻한 코칭 코멘트를 남겨주세요."></textarea>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ==================== VIEW 2: 시간표 ==================== -->
+        <div id="view-timetable" class="hidden flex-col gap-4">
+            <section class="paper-card rounded-xl overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-[#E5E2DC] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white">
+                    <div>
+                        <h2 class="text-base sm:text-lg font-bold text-[#222222] flex items-center gap-2">
+                            <i class="ph-fill ph-clock text-xl"></i> 주간 고정 시간표 (08:00 ~ 22:00)
+                        </h2>
+                        <p class="text-xs text-[#777777] mt-0.5">자녀 모드에서 각 시간 칸을 클릭하여 일정을 추가하거나 수정할 수 있습니다.</p>
+                    </div>
+                    <!-- 범례 -->
+                    <div class="flex flex-wrap gap-3 text-xs font-medium bg-[#F8F6F1] px-3.5 py-2 rounded-lg border border-[#E5E2DC]">
+                        <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded-sm sch-school inline-block"></span>학교 수업</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded-sm sch-academy inline-block"></span>학원</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded-sm sch-personal inline-block"></span>개인학습</span>
+                    </div>
+                </div>
+
                 <div class="overflow-x-auto custom-scrollbar bg-white">
-                    <div class="min-w-[800px]">
+                    <div class="min-w-[860px]">
                         <div id="timetable-grid" class="timetable-grid">
-                            <!-- Generated by JS -->
+                            <!-- JS로 동적 생성 -->
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
-    </div>
+    </main>
 
-    <!-- Modals -->
-    <div id="schedule-modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 opacity-0 transition-opacity duration-200">
-        <div class="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full mx-4 transform scale-95 transition-transform duration-200">
-            <h3 class="text-lg font-bold flex items-center gap-2 mb-4 text-[#2D2D2D]">
-                <i class="ph-fill ph-clock"></i> 일정 관리
-            </h3>
+    <!-- ==================== 모달 1: 시간표 일정 편집 ==================== -->
+    <div id="schedule-modal" class="fixed inset-0 bg-black/45 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 border border-[#E5E2DC]">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-bold text-[#222222] flex items-center gap-2">
+                    <i class="ph-fill ph-calendar-plus text-lg"></i> 시간표 일정 관리
+                </h3>
+                <span id="sch-slot-label" class="text-xs font-semibold text-[#666666] bg-[#F5F3EE] px-2.5 py-1 rounded-md"></span>
+            </div>
+
             <input type="hidden" id="sch-day">
             <input type="hidden" id="sch-hour">
             <input type="hidden" id="sch-id">
-            
+
             <div class="mb-4">
-                <label class="block text-sm font-bold text-gray-700 mb-1">일정 이름</label>
-                <input type="text" id="sch-title" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#2D2D2D]" placeholder="예: 수학학원, 자습 등">
+                <label for="sch-title" class="block text-xs font-bold text-[#444444] mb-1.5">일정 이름</label>
+                <input type="text" id="sch-title"
+                    class="w-full border border-[#D4D0C8] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#222222]"
+                    placeholder="예: 학교 수업, 수학 학원, 저녁 자습">
             </div>
-            
+
             <div class="mb-6">
-                <label class="block text-sm font-bold text-gray-700 mb-1">분류</label>
+                <label class="block text-xs font-bold text-[#444444] mb-1.5">분류 (모노톤 스타일)</label>
                 <div class="grid grid-cols-3 gap-2">
-                    <button type="button" class="sch-type-btn border border-gray-300 rounded-lg py-2 text-sm font-medium transition-all" data-type="school">학교</button>
-                    <button type="button" class="sch-type-btn border border-gray-300 rounded-lg py-2 text-sm font-medium transition-all" data-type="academy">학원</button>
-                    <button type="button" class="sch-type-btn border border-gray-300 rounded-lg py-2 text-sm font-medium transition-all" data-type="personal">개인학습</button>
+                    <button type="button" class="sch-type-btn py-2 rounded-lg text-xs font-semibold border transition-all" data-type="school">학교 수업</button>
+                    <button type="button" class="sch-type-btn py-2 rounded-lg text-xs font-semibold border transition-all" data-type="academy">학원</button>
+                    <button type="button" class="sch-type-btn py-2 rounded-lg text-xs font-semibold border transition-all" data-type="personal">개인학습</button>
                 </div>
                 <input type="hidden" id="sch-type" value="school">
             </div>
 
-            <div class="flex justify-between items-center">
-                <button id="btn-delete-sch" class="text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg text-sm transition-colors hidden font-medium"><i class="ph ph-trash"></i> 삭제</button>
+            <div class="flex items-center justify-between gap-2">
+                <button id="btn-delete-sch" onclick="deleteScheduleFromModal()" class="hidden px-3 py-2 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 transition flex items-center gap-1">
+                    <i class="ph ph-trash"></i> 삭제
+                </button>
                 <div class="flex gap-2 ml-auto">
-                    <button onclick="closeScheduleModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 font-medium">취소</button>
-                    <button onclick="saveSchedule()" class="px-4 py-2 bg-[#2D2D2D] text-white rounded-lg text-sm hover:bg-black font-medium">저장</button>
+                    <button onclick="closeScheduleModal()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-[#F2EFE9] text-[#555555] hover:bg-[#E5E2DC] transition">취소</button>
+                    <button onclick="saveSchedule()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-[#222222] text-white hover:bg-black transition">저장</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="msg-modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 opacity-0 transition-opacity duration-200">
-        <div class="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full mx-4 text-center transform scale-95 transition-transform duration-200">
-            <p id="msg-text" class="text-[#2D2D2D] mb-6 font-medium"></p>
-            <button onclick="closeMsgModal()" class="px-6 py-2 bg-[#2D2D2D] text-white rounded-lg text-sm hover:bg-black w-full font-medium">확인</button>
+    <!-- ==================== 모달 2: 가족 공유 코드 설정 ==================== -->
+    <div id="room-modal" class="fixed inset-0 bg-black/45 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 border border-[#E5E2DC]">
+            <h3 class="text-base font-bold text-[#222222] flex items-center gap-2 mb-2">
+                <i class="ph-fill ph-users-three text-lg"></i> 가족 공유 코드 설정
+            </h3>
+            <p class="text-xs text-[#666666] mb-4 readable-text">
+                부모님과 자녀가 동일한 <strong>공유 코드</strong>를 입력하면 두 기기의 플래너가 실시간으로 동기화됩니다.
+            </p>
+
+            <div class="mb-4">
+                <label for="input-room-id" class="block text-xs font-bold text-[#444444] mb-1.5">공유 코드 (영문/숫자/하이픈)</label>
+                <div class="flex gap-2">
+                    <input type="text" id="input-room-id"
+                        class="flex-1 border border-[#D4D0C8] rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-[#222222]"
+                        placeholder="예: our-family-2026">
+                    <button onclick="copyShareLink()" class="px-3 py-2 rounded-lg text-xs font-semibold bg-[#F2EFE9] text-[#222222] hover:bg-[#E5E2DC] transition whitespace-nowrap flex items-center gap-1">
+                        <i class="ph ph-copy"></i> 링크 복사
+                    </button>
+                </div>
+            </div>
+
+            <div id="firebase-status-info" class="mb-5 p-3 rounded-lg bg-[#F8F6F1] border border-[#E5E2DC] text-xs text-[#555555] readable-text">
+                연결 상태 확인 중...
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button onclick="closeRoomModal()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-[#F2EFE9] text-[#555555] hover:bg-[#E5E2DC] transition">닫기</button>
+                <button onclick="applyRoomId()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-[#222222] text-white hover:bg-black transition">코드 적용</button>
+            </div>
         </div>
     </div>
 
-    <!-- App Logic -->
-    <script>
-        const STORAGE_KEY = 'study_planner_local_data';
-        
-        // App State
-        let currentMode = 'child'; 
-        let currentTab = 'planner'; 
-        let weekStartDay = parseInt(localStorage.getItem('weekStartDay') || '0'); // 0: Sun, 1: Mon
-        
-        // Data Stores
+    <!-- ==================== 모달 3: 알림 메시지 ==================== -->
+    <div id="msg-modal" class="fixed inset-0 bg-black/45 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-xs w-full p-6 text-center border border-[#E5E2DC]">
+            <p id="msg-text" class="text-sm font-medium text-[#222222] mb-5 readable-text"></p>
+            <button onclick="closeMsgModal()" class="w-full py-2.5 rounded-lg text-xs font-semibold bg-[#222222] text-white hover:bg-black transition">확인</button>
+        </div>
+    </div>
+
+    <!-- ==================== 앱 스크립트 (Firebase + 로컬 폴백) ==================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        /* =========================================================================
+           [외부 호스팅용 Firebase 설정 영역]
+           GitHub Pages나 Cloudflare Pages에 직접 배포하여 실시간 동기화를 쓰려면
+           Firebase 콘솔에서 발급받은 프로젝트 설정값을 아래 객체에 채워 넣으세요.
+           비워두면 자동으로 로컬 저장 모드(localStorage)로 완벽하게 작동합니다.
+           ========================================================================= */
+        const USER_FIREBASE_CONFIG = {
+            apiKey: "",
+            authDomain: "",
+            projectId: "",
+            storageBucket: "",
+            messagingSenderId: "",
+            appId: ""
+        };
+
+        // -------------------------------------------------------------------------
+        // 1. 전역 상태 및 설정 변수
+        // -------------------------------------------------------------------------
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'weekly-study-planner';
+        const DEFAULT_ROOM_ID = 'family-study-2026';
+
+        // URL 파라미터(?room=...) 우선 확인 후 저장된 방 코드 사용
+        function getInitialRoomId() {
+            const params = new URLSearchParams(window.location.search);
+            const urlRoom = params.get('room');
+            if (urlRoom && urlRoom.trim()) {
+                return sanitizeRoomId(urlRoom);
+            }
+            try {
+                return localStorage.getItem('planner_room_id') || DEFAULT_ROOM_ID;
+            } catch {
+                return DEFAULT_ROOM_ID;
+            }
+        }
+
+        function sanitizeRoomId(raw) {
+            return raw.trim().replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 40) || DEFAULT_ROOM_ID;
+        }
+
+        let roomId = getInitialRoomId();
+        let currentMode = 'child'; // 'child' | 'parent'
+        let currentTab = 'planner'; // 'planner' | 'timetable'
+        let layoutMode = 'wide'; // 'wide' (기본 2줄 카드형) | 'row' (7일 한줄 가로스크롤)
+        let weekStartDay = 0; // 0: 일요일, 1: 월요일
+
+        try {
+            const savedStart = localStorage.getItem('planner_week_start_day');
+            if (savedStart === '0' || savedStart === '1') weekStartDay = parseInt(savedStart, 10);
+            const savedLayout = localStorage.getItem('planner_layout_mode');
+            if (savedLayout === 'wide' || savedLayout === 'row') layoutMode = savedLayout;
+        } catch (e) { /* ignore storage errors */ }
+
+        // 데이터 상태
         let tasks = [];
         let schedules = [];
         let reviews = {};
-        
-        // Date Logic
+
+        // 날짜 상태
         const today = new Date();
         let baseDate = new Date(today);
         let weekDates = [];
-        let currentWeekId = ''; 
+        let currentWeekId = '';
 
-        const DOM = {};
-        
+        // Firebase 런타임 상태
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let useCloudSync = false;
+        let unsubscribeRoom = null;
+        let isApplyingRemoteData = false;
+        let reviewDebounceTimer = null;
+
+        // -------------------------------------------------------------------------
+        // 2. 날짜 유틸리티 함수
+        // -------------------------------------------------------------------------
+        const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+        const START_HOUR = 8;
+        const END_HOUR = 22;
+
         function getFormattedDate(date) {
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        }
-        
-        function getDisplayDate(date) {
-            const days = ['일', '월', '화', '수', '목', '금', '토'];
-            return `${date.getMonth() + 1}/${date.getDate()} (${days[date.getDay()]})`;
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
         }
 
-        function calculateWeekDates(date) {
+        function getShortDisplayDate(date) {
+            return `${date.getMonth() + 1}/${date.getDate()} ${DAY_NAMES[date.getDay()]}`;
+        }
+
+        function isSameDay(a, b) {
+            return a.getFullYear() === b.getFullYear() &&
+                   a.getMonth() === b.getMonth() &&
+                   a.getDate() === b.getDate();
+        }
+
+        function calculateWeekDates(targetDate) {
             weekDates = [];
-            const currentDayOfWeek = date.getDay(); 
-            
-            // Adjust start day (0 or 1)
-            let diff = currentDayOfWeek - weekStartDay;
+            const dayOfWeek = targetDate.getDay();
+            let diff = dayOfWeek - weekStartDay;
             if (diff < 0) diff += 7;
-            
+
             for (let i = 0; i < 7; i++) {
-                const d = new Date(date);
-                d.setDate(date.getDate() - diff + i);
+                const d = new Date(targetDate);
+                d.setDate(targetDate.getDate() - diff + i);
                 weekDates.push(d);
             }
-            
-            const startOfWeek = weekDates[0];
-            const endOfWeek = weekDates[6];
-            currentWeekId = getFormattedDate(startOfWeek);
-            
-            const weekNumber = Math.ceil(startOfWeek.getDate() / 7);
-            const label = `${startOfWeek.getFullYear()}년 ${startOfWeek.getMonth() + 1}월 ${weekNumber}주차`;
-            const period = `(${startOfWeek.getMonth() + 1}.${startOfWeek.getDate()}~${endOfWeek.getMonth() + 1}.${endOfWeek.getDate()})`;
-            
-            document.getElementById('current-week-label').textContent = `${label} ${period}`;
+
+            const start = weekDates[0];
+            const end = weekDates[6];
+            // 주차 회고 키는 항상 해당 주의 일요일 날짜(또는 시작일) 기준으로 통일하되,
+            // 시작 요일을 바꿔도 같은 주 회고가 유지되도록 '해당 주 수요일 날짜'를 주간 키로 사용
+            const midWeek = weekDates[3];
+            currentWeekId = `week-${getFormattedDate(midWeek)}`;
+
+            const weekOfMonth = Math.ceil(start.getDate() / 7);
+            const label = `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${weekOfMonth}주차`;
+            const range = `(${start.getMonth() + 1}.${start.getDate()} ~ ${end.getMonth() + 1}.${end.getDate()})`;
+            document.getElementById('current-week-label').textContent = `${label} ${range}`;
         }
 
-        function updateProgressUI() {
-            let weeklyTotal = 0;
-            let weeklyCompleted = 0;
+        // -------------------------------------------------------------------------
+        // 3. 실제 사용 예시(Mock Data) 생성 - 초6 자녀의 중1 예습 시나리오
+        // -------------------------------------------------------------------------
+        function createDefaultMockData() {
+            calculateWeekDates(new Date());
 
-            // Update Daily Progress
-            weekDates.forEach(date => {
-                const dateStr = getFormattedDate(date);
-                const dayTasks = tasks.filter(t => t.date === dateStr);
-                const dayTotal = dayTasks.length;
-                const dayCompleted = dayTasks.filter(t => t.completed).length;
-                
-                weeklyTotal += dayTotal;
-                weeklyCompleted += dayCompleted;
-
-                const dayPercent = dayTotal === 0 ? 0 : Math.round((dayCompleted / dayTotal) * 100);
-                const dailyBar = document.getElementById(`daily-progress-${dateStr}`);
-                if (dailyBar) dailyBar.style.width = `${dayPercent}%`;
+            // 이번 주 월~일 날짜 매핑 (요일 인덱스 기준: 0=일, 1=월, ..., 6=토)
+            const dateByDayIndex = {};
+            weekDates.forEach(d => {
+                dateByDayIndex[d.getDay()] = getFormattedDate(d);
             });
 
-            // Update Weekly Progress
-            const weeklyPercent = weeklyTotal === 0 ? 0 : Math.round((weeklyCompleted / weeklyTotal) * 100);
-            document.getElementById('weekly-progress-bar').style.width = `${weeklyPercent}%`;
-            document.getElementById('weekly-progress-text').textContent = `${weeklyPercent}%`;
-        }
-
-        function initWeeklyUI() {
-            let html = '';
-            weekDates.forEach((date, index) => {
-                const dateStr = getFormattedDate(date);
-                const displayStr = getDisplayDate(date);
-                const isToday = date.toDateString() === today.toDateString();
-                const dayIndex = date.getDay();
-                
-                let headerBg = 'bg-[#F8F6F0]';
-                if (dayIndex === 0) headerBg = 'bg-red-50 text-red-700'; // Sunday
-                if (dayIndex === 6) headerBg = 'bg-blue-50 text-blue-700'; // Saturday
-                
-                const borderClass = isToday ? 'border-2 border-[#2D2D2D] shadow-md' : 'border border-gray-200';
-
-                html += `
-                <div class="paper-card rounded-xl flex flex-col overflow-hidden ${borderClass} min-h-[350px] xl:min-h-0 xl:h-[450px]">
-                    <div class="${headerBg} p-3 border-b border-gray-200 font-bold flex justify-between items-center text-sm relative">
-                        <span>${displayStr}</span>
-                        ${isToday ? '<span class="text-[10px] bg-[#2D2D2D] text-white px-2 py-0.5 rounded-full">오늘</span>' : ''}
-                        <!-- Daily Progress Bar bg -->
-                        <div class="absolute bottom-0 left-0 w-full h-1 bg-black/5">
-                            <div id="daily-progress-${dateStr}" class="h-full bg-[#2D2D2D] transition-all duration-500 w-0"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex-1 p-3 overflow-y-auto custom-scrollbar flex flex-col gap-2" id="tasks-${dateStr}">
-                        <!-- Tasks -->
-                    </div>
-                    
-                    <div class="p-3 border-t border-gray-100 bg-[#FAFAFA]">
-                        <form onsubmit="event.preventDefault(); addTask(this.taskInput.value, '${dateStr}'); this.reset();" class="flex gap-2">
-                            <input type="text" name="taskInput" placeholder="할 일 추가..." class="flex-1 text-sm bg-transparent border-b border-gray-300 focus:border-[#2D2D2D] focus:outline-none px-1 py-1" ${currentMode === 'parent' ? 'disabled' : ''}>
-                            <button type="submit" class="text-[#2D2D2D] hover:text-black disabled:opacity-30" ${currentMode === 'parent' ? 'disabled' : ''}>
-                                <i class="ph-fill ph-plus-circle text-xl"></i>
-                            </button>
-                        </form>
-                    </div>
-                </div>
-                `;
-            });
-            DOM.weeklyView.innerHTML = html;
-        }
-
-        const timetableDays = ['월', '화', '수', '목', '금', '토', '일'];
-        const startHour = 8;
-        const endHour = 22;
-
-        function initTimetableUI() {
-            let html = '<div class="timetable-cell timetable-header border-b">시간</div>';
-            timetableDays.forEach(day => {
-                html += `<div class="timetable-cell timetable-header border-b">${day}</div>`;
-            });
-
-            for (let hour = startHour; hour <= endHour; hour++) {
-                html += `<div class="timetable-cell time-label">${hour}:00</div>`;
-                for (let day = 0; day < 7; day++) { // day 0 is Monday in Timetable logic
-                    html += `<div class="timetable-cell relative cursor-pointer hover:bg-gray-50 transition-colors p-1" data-day="${day}" data-hour="${hour}" onclick="openScheduleModal(${day}, ${hour})">
-                        <div id="sch-slot-${day}-${hour}" class="w-full h-full min-h-[36px] rounded text-[11px] p-1 flex items-center justify-center text-center font-medium leading-tight line-clamp-2 break-all opacity-0"></div>
-                    </div>`;
-                }
-            }
-            DOM.timetableGrid.innerHTML = html;
-
-            document.querySelectorAll('.sch-type-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('.sch-type-btn').forEach(b => {
-                        b.classList.remove('bg-[#2D2D2D]', 'text-white', 'border-[#2D2D2D]');
-                        b.classList.add('border-gray-300', 'text-gray-700');
-                    });
-                    const target = e.target;
-                    target.classList.remove('border-gray-300', 'text-gray-700');
-                    target.classList.add('bg-[#2D2D2D]', 'text-white', 'border-[#2D2D2D]');
-                    document.getElementById('sch-type').value = target.dataset.type;
-                });
-            });
-        }
-
-        function loadData() {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                const data = JSON.parse(stored);
-                tasks = data.tasks || [];
-                schedules = data.schedules || [];
-                reviews = data.reviews || {};
-            } else {
-                initializeMockData();
-            }
-        }
-
-        function saveData() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, schedules, reviews }));
-            flashSyncStatus();
-            updateProgressUI();
-        }
-
-        function initializeMockData() {
-            // Re-calculate weekDates based on current settings before creating mock data
-            calculateWeekDates(new Date()); 
-            
-            const m = (dayOffset) => getFormattedDate(weekDates[dayOffset]);
-
-            // Middle School Math & English Mock Data
-            tasks = [
-                { id: 't1', text: "[수학] 소인수분해 개념 노트 정리", date: m(1), completed: true, createdAt: 1 },
-                { id: 't2', text: "[영어] 필수 영단어 30개 암기", date: m(1), completed: true, createdAt: 2 },
-                
-                { id: 't3', text: "[수학] 소인수분해 대표 유형 풀이", date: m(2), completed: true, createdAt: 3 },
-                { id: 't4', text: "[영어] 누적 단어 복습 테스트", date: m(2), completed: true, createdAt: 4 },
-                
-                { id: 't5', text: "[수학] 정수와 유리수 개념 인강 수강", date: m(3), completed: false, createdAt: 5 },
-                { id: 't6', text: "[영어] 필수 영단어 30개 추가 암기", date: m(3), completed: false, createdAt: 6 },
-                
-                { id: 't7', text: "[수학] 정수와 유리수 기본 문제 풀이", date: m(4), completed: false, createdAt: 7 },
-                { id: 't8', text: "독서 30분 (비문학 요약)", date: m(4), completed: false, createdAt: 8 },
-                
-                { id: 't9', text: "주간 오답 노트 정리", date: m(5), completed: false, createdAt: 9 },
-                { id: 't10', text: "가족과 주말 회고 및 다음주 계획", date: m(6), completed: false, createdAt: 10 }
+            const sampleTasks = [
+                { id: 'm1', date: dateByDayIndex[1], text: '[중1 수학] 소인수분해 개념 노트 정리 및 거듭제곱 이해하기', completed: true, createdAt: 101 },
+                { id: 'm2', date: dateByDayIndex[1], text: '[영어] 중학 필수 영단어 Day 01 (30개) 암기 및 자가 테스트', completed: true, createdAt: 102 },
+                { id: 'm3', date: dateByDayIndex[2], text: '[중1 수학] 소인수분해 대표 유형 문제풀이 (20문항)', completed: true, createdAt: 103 },
+                { id: 'm4', date: dateByDayIndex[2], text: '[국어] 비문학 독해 지문 2편 읽고 핵심 문장 요약하기', completed: true, createdAt: 104 },
+                { id: 'm5', date: dateByDayIndex[3], text: '[중1 수학] 최대공약수와 최소공배수 활용 개념 인강 수강', completed: true, createdAt: 105 },
+                { id: 'm6', date: dateByDayIndex[3], text: '[영어] 중학 필수 영단어 Day 02 암기 및 누적 복습', completed: false, createdAt: 106 },
+                { id: 'm7', date: dateByDayIndex[4], text: '[중1 수학] 정수와 유리수 개념 정리 (양수/음수 수직선 표현)', completed: false, createdAt: 107 },
+                { id: 'm8', date: dateByDayIndex[4], text: '[영어] 중1 기초 문법 (be동사와 일반동사) 워크북 풀기', completed: false, createdAt: 108 },
+                { id: 'm9', date: dateByDayIndex[5], text: '[중1 수학] 이번 주 틀린 문제 오답 노트 정리하기', completed: false, createdAt: 109 },
+                { id: 'm10', date: dateByDayIndex[5], text: '[국어] 독서 30분 후 인상 깊은 문장 2줄 기록', completed: false, createdAt: 110 },
+                { id: 'm11', date: dateByDayIndex[6], text: '[주간 점검] 영단어 Day 01~02 전체 복습 테스트', completed: false, createdAt: 111 },
+                { id: 'm12', date: dateByDayIndex[0], text: '[1:1 코칭] 아빠와 한 주 회고 나누고 다음 주 목표 세우기', completed: false, createdAt: 112 }
             ];
 
-            schedules = [];
-            let schId = 1;
-            for(let d=0; d<5; d++) { // Mon-Fri
-                for(let h=9; h<=14; h++) { schedules.push({ id: 's'+(schId++), day: d, hour: h, title: '학교 수업', type: 'school' }); }
+            // 시간표 (day: 0=일, 1=월, 2=화, 3=수, 4=목, 5=금, 6=토)
+            const sampleSchedules = [];
+            let sIdx = 1;
+            // 월~금 09:00~14:00 학교 수업
+            for (let d = 1; d <= 5; d++) {
+                for (let h = 9; h <= 14; h++) {
+                    sampleSchedules.push({ id: `s${sIdx++}`, day: d, hour: h, title: '학교 수업', type: 'school' });
+                }
             }
-            [0, 2, 4].forEach(d => { // Mon, Wed, Fri
-                schedules.push({ id: 's'+(schId++), day: d, hour: 16, title: '수학 학원', type: 'academy' });
-                schedules.push({ id: 's'+(schId++), day: d, hour: 17, title: '수학 학원', type: 'academy' });
+            // 월, 수, 금 16:00~17:00 수학 학원
+            [1, 3, 5].forEach(d => {
+                sampleSchedules.push({ id: `s${sIdx++}`, day: d, hour: 16, title: '수학 학원', type: 'academy' });
+                sampleSchedules.push({ id: `s${sIdx++}`, day: d, hour: 17, title: '수학 학원', type: 'academy' });
             });
-            [1, 3].forEach(d => { // Tue, Thu
-                schedules.push({ id: 's'+(schId++), day: d, hour: 17, title: '영어 학원', type: 'academy' });
-                schedules.push({ id: 's'+(schId++), day: d, hour: 18, title: '영어 학원', type: 'academy' });
+            // 화, 목 17:00~18:00 영어 학원
+            [2, 4].forEach(d => {
+                sampleSchedules.push({ id: `s${sIdx++}`, day: d, hour: 17, title: '영어 학원', type: 'academy' });
+                sampleSchedules.push({ id: `s${sIdx++}`, day: d, hour: 18, title: '영어 학원', type: 'academy' });
             });
-            for(let d=0; d<5; d++) {
-                schedules.push({ id: 's'+(schId++), day: d, hour: 20, title: '개인 학습', type: 'personal' });
+            // 월~금 20:00~21:00 개인학습
+            for (let d = 1; d <= 5; d++) {
+                sampleSchedules.push({ id: `s${sIdx++}`, day: d, hour: 20, title: '개인 학습 (복습)', type: 'personal' });
             }
+            // 토요일 오전 개인학습
+            sampleSchedules.push({ id: `s${sIdx++}`, day: 6, hour: 10, title: '주간 오답 정리', type: 'personal' });
+            sampleSchedules.push({ id: `s${sIdx++}`, day: 6, hour: 11, title: '독서 및 요약', type: 'personal' });
 
-            reviews[currentWeekId] = {
-                childReflection: "중학교 수학 소인수분해 파트는 재밌었는데, 정수와 유리수 개념은 조금 헷갈린다. 인강을 다시 돌려봐야겠다. 영단어는 꾸준히 외우는 중!",
-                parentReview: "벌써 중등 수학을 예습하다니 대단해! 정수와 음수 개념은 처음엔 다들 낯설어하니 조급해하지 말고 천천히 복습해보자. 아빠가 주말에 같이 봐줄게."
+            const sampleReviews = {};
+            sampleReviews[currentWeekId] = {
+                childReflection: "중1 수학 소인수분해는 처음에 낯설었지만 개념 노트를 정리하고 나니 문제가 술술 풀려서 뿌듯했다. 다만 수요일에 학원 숙제가 많아서 영단어 복습을 조금 미룬 게 아쉽다. 주말에는 정수와 유리수 개념을 차분히 다시 읽어봐야겠다.",
+                parentReview: "스스로 계획을 세우고 월·화요일 목표를 100% 달성한 점이 정말 멋지다! 바쁜 날에 계획을 조금 놓치더라도 괜찮아. 주말에 함께 보완하면 되니까 조급해하지 말자. 일요일 저녁에 정수와 유리수 헷갈리는 부분 아빠랑 같이 살펴보자. 응원해!"
             };
 
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, schedules, reviews }));
+            return { tasks: sampleTasks, schedules: sampleSchedules, reviews: sampleReviews };
         }
 
-        window.changeWeek = function(offset) {
-            baseDate.setDate(baseDate.getDate() + (offset * 7));
-            refreshViews();
-        };
-
-        window.goToToday = function() {
-            baseDate = new Date();
-            refreshViews();
-        };
-
-        window.setStartDay = function(day) {
-            weekStartDay = day;
-            localStorage.setItem('weekStartDay', day);
-            
-            // Update toggle UI
-            const btnSun = document.getElementById('btn-start-sun');
-            const btnMon = document.getElementById('btn-start-mon');
-            
-            if (day === 0) {
-                btnSun.classList.replace('text-gray-500', 'text-white');
-                btnSun.classList.replace('hover:text-black', 'bg-[#2D2D2D]');
-                btnSun.classList.add('shadow-sm');
-                btnMon.classList.replace('text-white', 'text-gray-500');
-                btnMon.classList.replace('bg-[#2D2D2D]', 'hover:text-black');
-                btnMon.classList.remove('shadow-sm');
-            } else {
-                btnMon.classList.replace('text-gray-500', 'text-white');
-                btnMon.classList.replace('hover:text-black', 'bg-[#2D2D2D]');
-                btnMon.classList.add('shadow-sm');
-                btnSun.classList.replace('text-white', 'text-gray-500');
-                btnSun.classList.replace('bg-[#2D2D2D]', 'hover:text-black');
-                btnSun.classList.remove('shadow-sm');
+        // -------------------------------------------------------------------------
+        // 4. 데이터 동기화 레이어 (Firebase Firestore + localStorage 폴백)
+        // -------------------------------------------------------------------------
+        function getActiveFirebaseConfig() {
+            // 1) 사용자가 직접 입력한 외부 배포용 설정 확인
+            if (USER_FIREBASE_CONFIG && USER_FIREBASE_CONFIG.apiKey && USER_FIREBASE_CONFIG.projectId) {
+                return USER_FIREBASE_CONFIG;
             }
-            refreshViews();
-        };
-
-        function refreshViews() {
-            calculateWeekDates(baseDate);
-            initWeeklyUI();
-            updateReviewUI();
-            renderTasks();
-            renderSchedules();
-            updateProgressUI();
-            setMode(currentMode); 
-        }
-
-        function updateReviewUI() {
-            const reviewData = reviews[currentWeekId] || { childReflection: '', parentReview: '' };
-            DOM.taChildReflection.value = reviewData.childReflection;
-            DOM.taParentReview.value = reviewData.parentReview;
-        }
-
-        function renderTasks() {
-            weekDates.forEach(date => {
-                const dateStr = getFormattedDate(date);
-                const container = document.getElementById(`tasks-${dateStr}`);
-                if (!container) return;
-                
-                container.innerHTML = '';
-                const dayTasks = tasks.filter(t => t.date === dateStr).sort((a, b) => a.createdAt - b.createdAt);
-                
-                if (dayTasks.length === 0) {
-                    container.innerHTML = '<div class="text-[11px] text-gray-400 italic text-center mt-6">일정 없음</div>';
-                } else {
-                    dayTasks.forEach(task => {
-                        const isChild = currentMode === 'child';
-                        const checked = task.completed ? 'checked' : '';
-                        const textStyle = task.completed ? 'line-through text-gray-400' : 'text-[#2D2D2D] font-medium';
-                        
-                        container.innerHTML += `
-                            <div class="flex items-start gap-2 p-1.5 hover:bg-gray-50 rounded transition-colors group">
-                                <input type="checkbox" class="custom-checkbox mt-0.5 shrink-0" 
-                                    ${checked} 
-                                    ${!isChild ? 'disabled' : ''} 
-                                    onchange="toggleTask('${task.id}', this.checked)">
-                                <span class="text-xs flex-1 break-all ${textStyle} leading-tight pt-0.5">${task.text}</span>
-                                ${isChild ? `<button onclick="deleteTask('${task.id}')" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"><i class="ph ph-trash"></i></button>` : ''}
-                            </div>
-                        `;
-                    });
+            // 2) 실행 환경에서 주입된 Firebase 설정 확인
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                try {
+                    const parsed = JSON.parse(__firebase_config);
+                    if (parsed && parsed.apiKey && parsed.projectId) return parsed;
+                } catch (e) {
+                    console.warn('Firebase config parse error:', e);
                 }
-            });
-            updateProgressUI();
+            }
+            return null;
         }
 
-        function renderSchedules() {
-            for (let hour = startHour; hour <= endHour; hour++) {
-                for (let day = 0; day < 7; day++) {
-                    const slot = document.getElementById(`sch-slot-${day}-${hour}`);
-                    if (slot) {
-                        slot.className = 'w-full h-full min-h-[36px] rounded text-[11px] p-1 flex items-center justify-center text-center font-medium leading-tight line-clamp-2 break-all opacity-0';
-                        slot.textContent = '';
-                        slot.removeAttribute('data-id');
+        function setSyncBadge(statusType, text) {
+            const dots = document.querySelectorAll('.sync-dot');
+            const labels = document.querySelectorAll('.sync-label');
+            const colorMap = {
+                cloud: 'bg-emerald-500',
+                saving: 'bg-amber-500',
+                local: 'bg-gray-500',
+                error: 'bg-red-500'
+            };
+
+            dots.forEach(dot => {
+                dot.className = `w-2 h-2 rounded-full sync-dot ${colorMap[statusType] || 'bg-gray-400'}`;
+            });
+            labels.forEach(lbl => {
+                lbl.textContent = text;
+            });
+        }
+
+        function getLocalStorageKey() {
+            return `study_planner_data_${roomId}`;
+        }
+
+        function loadFromLocal() {
+            try {
+                const raw = localStorage.getItem(getLocalStorageKey());
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
+                    schedules = Array.isArray(parsed.schedules) ? parsed.schedules : [];
+                    reviews = parsed.reviews && typeof parsed.reviews === 'object' ? parsed.reviews : {};
+                    if (tasks.length === 0 && schedules.length === 0 && Object.keys(reviews).length === 0) {
+                        const mock = createDefaultMockData();
+                        tasks = mock.tasks;
+                        schedules = mock.schedules;
+                        reviews = mock.reviews;
+                        saveToLocal();
                     }
+                } else {
+                    const mock = createDefaultMockData();
+                    tasks = mock.tasks;
+                    schedules = mock.schedules;
+                    reviews = mock.reviews;
+                    saveToLocal();
                 }
+            } catch (e) {
+                const mock = createDefaultMockData();
+                tasks = mock.tasks;
+                schedules = mock.schedules;
+                reviews = mock.reviews;
             }
-
-            schedules.forEach(sch => {
-                const slot = document.getElementById(`sch-slot-${sch.day}-${sch.hour}`);
-                if (slot) {
-                    slot.textContent = sch.title;
-                    slot.setAttribute('data-id', sch.id);
-                    slot.classList.remove('opacity-0');
-                    if (sch.type === 'school') slot.classList.add('sch-school');
-                    else if (sch.type === 'academy') slot.classList.add('sch-academy');
-                    else if (sch.type === 'personal') slot.classList.add('sch-personal');
-                }
-            });
+            setSyncBadge('local', `로컬 저장 (${roomId})`);
+            refreshAllViews();
         }
 
-        window.addTask = function(text, dateStr) {
-            if (!text.trim() || currentMode === 'parent') return;
-            tasks.push({
-                id: Date.now() + '',
-                text: text.trim(),
-                date: dateStr,
-                completed: false,
-                createdAt: Date.now()
-            });
-            saveData();
-            renderTasks();
-        };
-
-        window.toggleTask = function(id, completed) {
-            if (currentMode === 'parent') return;
-            const task = tasks.find(t => t.id === id);
-            if (task) {
-                task.completed = completed;
-                saveData();
-                renderTasks();
+        function saveToLocal() {
+            try {
+                localStorage.setItem(getLocalStorageKey(), JSON.stringify({ tasks, schedules, reviews }));
+            } catch (e) {
+                console.warn('Local storage save failed:', e);
             }
-        };
+        }
 
-        window.deleteTask = function(id) {
-            if (currentMode === 'parent') return;
-            tasks = tasks.filter(t => t.id !== id);
-            saveData();
-            renderTasks();
-        };
-
-        window.saveSchedule = function() {
-            if (currentMode === 'parent') {
-                showModal("학생 모드에서만 시간표를 수정할 수 있습니다.");
+        async function initStorage() {
+            const fbConfig = getActiveFirebaseConfig();
+            if (!fbConfig) {
+                useCloudSync = false;
+                loadFromLocal();
                 return;
             }
 
-            const title = document.getElementById('sch-title').value.trim();
-            const type = document.getElementById('sch-type').value;
-            const day = parseInt(document.getElementById('sch-day').value);
-            const hour = parseInt(document.getElementById('sch-hour').value);
-            const id = document.getElementById('sch-id').value;
+            try {
+                setSyncBadge('saving', '클라우드 연결 중...');
+                const app = initializeApp(fbConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
 
-            if (!title) { showModal("일정 이름을 입력해주세요."); return; }
+                // RULE 3: Auth Before Queries (Custom Token 우선, 없으면 익명 로그인)
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUser = cred.user;
+                } else {
+                    const cred = await signInAnonymously(auth);
+                    currentUser = cred.user;
+                }
 
-            if (id) {
-                const sch = schedules.find(s => s.id === id);
-                if(sch) { sch.title = title; sch.type = type; }
-            } else {
-                schedules.push({ id: Date.now() + '', title, type, day, hour });
+                useCloudSync = true;
+                subscribeToRoom(roomId);
+            } catch (error) {
+                console.error('Firebase initialization failed, falling back to local:', error);
+                useCloudSync = false;
+                loadFromLocal();
             }
-            
-            saveData();
-            renderSchedules();
-            closeScheduleModal();
-        };
+        }
 
-        window.deleteScheduleFromModal = function() {
-            const id = document.getElementById('sch-id').value;
-            if (!id || currentMode === 'parent') return;
-            
-            schedules = schedules.filter(s => s.id !== id);
-            saveData();
-            renderSchedules();
-            closeScheduleModal();
-        };
+        function subscribeToRoom(targetRoomId) {
+            if (!useCloudSync || !db || !currentUser) {
+                loadFromLocal();
+                return;
+            }
 
-        let debounceTimer;
-        function setupReviewListener() {
-            const saveReview = () => {
-                if (!reviews[currentWeekId]) reviews[currentWeekId] = { childReflection: '', parentReview: '' };
-                reviews[currentWeekId].childReflection = DOM.taChildReflection.value;
-                reviews[currentWeekId].parentReview = DOM.taParentReview.value;
-                saveData();
-            };
+            if (unsubscribeRoom) {
+                unsubscribeRoom();
+                unsubscribeRoom = null;
+            }
 
-            const triggerSave = () => {
-                clearTimeout(debounceTimer);
-                DOM.syncIcon.style.display = 'inline-block';
-                DOM.syncStatus.textContent = '저장 중...';
-                DOM.syncStatus.classList.remove('text-green-600');
-                debounceTimer = setTimeout(saveReview, 800);
-            };
+            // RULE 1: Strict Path -> /artifacts/{appId}/public/data/planner_rooms/{roomId}
+            const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'planner_rooms', targetRoomId);
 
-            DOM.taParentReview.addEventListener('input', triggerSave);
-            DOM.taChildReflection.addEventListener('input', triggerSave);
+            setSyncBadge('saving', '동기화 중...');
+
+            unsubscribeRoom = onSnapshot(
+                roomDocRef,
+                async (snapshot) => {
+                    isApplyingRemoteData = true;
+                    if (snapshot.exists()) {
+                        const data = snapshot.data();
+                        tasks = Array.isArray(data.tasks) ? data.tasks : [];
+                        schedules = Array.isArray(data.schedules) ? data.schedules : [];
+                        reviews = data.reviews && typeof data.reviews === 'object' ? data.reviews : {};
+                        saveToLocal();
+                        refreshAllViews();
+                        setSyncBadge('cloud', `실시간 동기화 (${targetRoomId})`);
+                    } else {
+                        // 처음 생성되는 공유 코드면 예시 데이터로 초기화 후 저장
+                        const mock = createDefaultMockData();
+                        tasks = mock.tasks;
+                        schedules = mock.schedules;
+                        reviews = mock.reviews;
+                        refreshAllViews();
+                        await persistData();
+                        setSyncBadge('cloud', `실시간 동기화 (${targetRoomId})`);
+                    }
+                    isApplyingRemoteData = false;
+                },
+                (error) => {
+                    console.error('Firestore snapshot error:', error);
+                    useCloudSync = false;
+                    setSyncBadge('local', `로컬 모드 (${targetRoomId})`);
+                    loadFromLocal();
+                }
+            );
+        }
+
+        async function persistData() {
+            if (isApplyingRemoteData) return;
+
+            saveToLocal();
+            updateReviewStatusText('저장 중...');
+
+            if (useCloudSync && db && currentUser) {
+                try {
+                    setSyncBadge('saving', '저장 중...');
+                    const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'planner_rooms', roomId);
+                    await setDoc(roomDocRef, {
+                        tasks,
+                        schedules,
+                        reviews,
+                        updatedAt: Date.now()
+                    }, { merge: true });
+                    setSyncBadge('cloud', `실시간 동기화 (${roomId})`);
+                    updateReviewStatusText('클라우드 저장 완료');
+                } catch (error) {
+                    console.error('Firestore save error:', error);
+                    setSyncBadge('error', '저장 오류 (로컬 보관)');
+                    updateReviewStatusText('로컬에 임시 저장됨');
+                }
+            } else {
+                setSyncBadge('local', `로컬 저장 (${roomId})`);
+                updateReviewStatusText('로컬 저장 완료');
+            }
+        }
+
+        function updateReviewStatusText(msg) {
+            const el = document.getElementById('review-save-status');
+            if (el) {
+                el.innerHTML = `<i class="ph ph-check-circle"></i> ${msg}`;
+            }
+        }
+
+        // -------------------------------------------------------------------------
+        // 5. UI 렌더링: 주간 플래너 & 달성률
+        // -------------------------------------------------------------------------
+        function renderWeeklyGrid() {
+            const gridEl = document.getElementById('weekly-grid');
+            const scrollWrapper = document.getElementById('weekly-scroll-container');
+
+            // 보기 방식 클래스 적용
+            if (layoutMode === 'row') {
+                scrollWrapper.classList.add('weekly-grid-scroll-wrapper');
+                gridEl.className = 'weekly-grid-single-row';
+            } else {
+                scrollWrapper.classList.remove('weekly-grid-scroll-wrapper');
+                gridEl.className = 'weekly-grid-wide';
+            }
+
+            const isChild = currentMode === 'child';
+            let html = '';
+
+            weekDates.forEach(date => {
+                const dateStr = getFormattedDate(date);
+                const displayDate = getShortDisplayDate(date);
+                const isTodayCard = isSameDay(date, today);
+                const dayIdx = date.getDay();
+
+                const dayTasks = tasks
+                    .filter(t => t.date === dateStr)
+                    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+                const total = dayTasks.length;
+                const done = dayTasks.filter(t => t.completed).length;
+                const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+
+                // 요일별 헤더 톤 (모노톤 기반의 은은한 구분)
+                let dayTextColor = 'text-[#222222]';
+                if (dayIdx === 0) dayTextColor = 'text-[#9E3B33]';
+                else if (dayIdx === 6) dayTextColor = 'text-[#3B5978]';
+
+                const cardBorder = isTodayCard
+                    ? 'border-2 border-[#222222] shadow-md'
+                    : 'border border-[#E5E2DC]';
+
+                let tasksHtml = '';
+                if (dayTasks.length === 0) {
+                    tasksHtml = `
+                        <div class="flex-1 flex flex-col items-center justify-center py-8 text-center text-xs text-[#A3A3A3]">
+                            <i class="ph ph-note-blank text-xl mb-1 opacity-60"></i>
+                            <span>등록된 학습 계획이 없습니다</span>
+                        </div>
+                    `;
+                } else {
+                    tasksHtml = dayTasks.map(task => {
+                        const checkedAttr = task.completed ? 'checked' : '';
+                        const textClass = task.completed
+                            ? 'line-through text-[#999999]'
+                            : 'text-[#222222] font-normal';
+
+                        return `
+                            <div class="task-row p-2 rounded-lg hover:bg-[#F8F6F1] transition-colors group">
+                                <input type="checkbox"
+                                    class="custom-checkbox"
+                                    ${checkedAttr}
+                                    ${!isChild ? 'disabled' : ''}
+                                    onchange="toggleTask('${task.id}', this.checked)">
+                                <span class="task-text-area text-[13.5px] ${textClass}">${escapeHtml(task.text)}</span>
+                                ${isChild ? `
+                                    <button onclick="deleteTask('${task.id}')"
+                                        class="text-[#C4C0B8] hover:text-red-600 opacity-70 sm:opacity-0 group-hover:opacity-100 transition-opacity p-0.5 shrink-0"
+                                        title="삭제" aria-label="할 일 삭제">
+                                        <i class="ph ph-trash text-sm"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                html += `
+                    <article class="paper-card rounded-xl flex flex-col overflow-hidden ${cardBorder} min-h-[320px]">
+                        <!-- 카드 헤더 + 일간 달성률 -->
+                        <div class="bg-[#F9F7F2] px-4 py-3 border-b border-[#EAE7DF]">
+                            <div class="flex items-center justify-between gap-2 mb-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-sm ${dayTextColor}">${displayDate}</span>
+                                    ${isTodayCard ? '<span class="text-[10px] font-bold bg-[#222222] text-white px-2 py-0.5 rounded-full">오늘</span>' : ''}
+                                </div>
+                                <span class="text-xs font-bold text-[#555555] tabular-nums">${percent}%</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-[#E6E3DC] rounded-full overflow-hidden">
+                                <div class="h-full bg-[#222222] rounded-full transition-all duration-300" style="width: ${percent}%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- 할 일 목록 -->
+                        <div class="flex-1 p-3 flex flex-col gap-1 overflow-y-auto custom-scrollbar max-h-[340px]">
+                            ${tasksHtml}
+                        </div>
+
+                        <!-- 할 일 추가 입력창 -->
+                        <div class="p-3 border-t border-[#EFECE6] bg-[#FCFBF8]">
+                            ${isChild ? `
+                                <form onsubmit="event.preventDefault(); handleAddTask(this, '${dateStr}');" class="flex items-center gap-2">
+                                    <input type="text" name="taskInput"
+                                        placeholder="새 학습 계획 입력..."
+                                        class="flex-1 min-w-0 text-xs sm:text-sm bg-white border border-[#DCD8D0] focus:border-[#222222] rounded-lg px-2.5 py-2 focus:outline-none">
+                                    <button type="submit"
+                                        class="p-2 rounded-lg bg-[#222222] text-white hover:bg-black transition shrink-0 flex items-center justify-center"
+                                        aria-label="추가">
+                                        <i class="ph-bold ph-plus text-sm"></i>
+                                    </button>
+                                </form>
+                            ` : `
+                                <div class="text-[11px] text-[#888888] text-center py-1.5 bg-[#F5F3EE] rounded-lg">
+                                    코치 모드 (읽기 전용)
+                                </div>
+                            `}
+                        </div>
+                    </article>
+                `;
+            });
+
+            gridEl.innerHTML = html;
+            updateWeeklyProgress();
+        }
+
+        function updateWeeklyProgress() {
+            const weekDateSet = new Set(weekDates.map(d => getFormattedDate(d)));
+            const weekTasks = tasks.filter(t => weekDateSet.has(t.date));
+            const total = weekTasks.length;
+            const completed = weekTasks.filter(t => t.completed).length;
+            const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+            document.getElementById('weekly-progress-bar').style.width = `${percent}%`;
+            document.getElementById('weekly-progress-count').textContent = `${completed} / ${total} 완료`;
+            document.getElementById('weekly-progress-percent').textContent = `${percent}%`;
+            document.getElementById('weekly-progress-count-mobile').textContent = `${completed} / ${total} 완료 (${percent}%)`;
+        }
+
+        // -------------------------------------------------------------------------
+        // 6. UI 렌더링: 1:1 주간 회고
+        // -------------------------------------------------------------------------
+        function renderReviewSection() {
+            const currentReview = reviews[currentWeekId] || { childReflection: '', parentReview: '' };
+            const taChild = document.getElementById('ta-child-reflection');
+            const taParent = document.getElementById('ta-parent-review');
+            const badgeChild = document.getElementById('badge-child-edit');
+            const badgeParent = document.getElementById('badge-parent-edit');
+
+            if (document.activeElement !== taChild) {
+                taChild.value = currentReview.childReflection || '';
+            }
+            if (document.activeElement !== taParent) {
+                taParent.value = currentReview.parentReview || '';
+            }
+
+            if (currentMode === 'child') {
+                taChild.disabled = false;
+                taChild.classList.remove('bg-[#F8F6F1]');
+                taChild.classList.add('bg-white');
+                badgeChild.textContent = '작성 가능';
+                badgeChild.className = 'text-[11px] px-2 py-0.5 rounded bg-[#222222] text-white font-medium';
+
+                taParent.disabled = true;
+                taParent.classList.add('bg-[#F8F6F1]');
+                taParent.classList.remove('bg-white');
+                badgeParent.textContent = '읽기 전용';
+                badgeParent.className = 'text-[11px] px-2 py-0.5 rounded bg-[#EAE7DF] text-[#666666] font-medium';
+            } else {
+                taChild.disabled = true;
+                taChild.classList.add('bg-[#F8F6F1]');
+                taChild.classList.remove('bg-white');
+                badgeChild.textContent = '읽기 전용';
+                badgeChild.className = 'text-[11px] px-2 py-0.5 rounded bg-[#EAE7DF] text-[#666666] font-medium';
+
+                taParent.disabled = false;
+                taParent.classList.remove('bg-[#F8F6F1]');
+                taParent.classList.add('bg-white');
+                badgeParent.textContent = '작성 가능';
+                badgeParent.className = 'text-[11px] px-2 py-0.5 rounded bg-[#222222] text-white font-medium';
+            }
+        }
+
+        // -------------------------------------------------------------------------
+        // 7. UI 렌더링: 시간표 (시작 요일에 맞춰 자동 정렬)
+        // -------------------------------------------------------------------------
+        function getOrderedTimetableDays() {
+            // weekStartDay가 0이면 [0,1,2,3,4,5,6] (일~토), 1이면 [1,2,3,4,5,6,0] (월~일)
+            const order = [];
+            for (let i = 0; i < 7; i++) {
+                order.push((weekStartDay + i) % 7);
+            }
+            return order;
+        }
+
+        function renderTimetable() {
+            const grid = document.getElementById('timetable-grid');
+            const orderedDays = getOrderedTimetableDays();
+
+            let html = '<div class="timetable-cell timetable-header">시간</div>';
+            orderedDays.forEach(dayIdx => {
+                const colorClass = dayIdx === 0 ? 'text-[#9E3B33]' : (dayIdx === 6 ? 'text-[#3B5978]' : '');
+                html += `<div class="timetable-cell timetable-header ${colorClass}">${DAY_NAMES[dayIdx]}요일</div>`;
+            });
+
+            for (let hour = START_HOUR; hour <= END_HOUR; hour++) {
+                const hourText = `${String(hour).padStart(2, '0')}:00`;
+                html += `<div class="timetable-cell time-label">${hourText}</div>`;
+
+                orderedDays.forEach(dayIdx => {
+                    const item = schedules.find(s => s.day === dayIdx && s.hour === hour);
+                    let cellContent = '';
+
+                    if (item) {
+                        const styleClass = item.type === 'school'
+                            ? 'sch-school'
+                            : (item.type === 'academy' ? 'sch-academy' : 'sch-personal');
+
+                        cellContent = `
+                            <div class="w-full h-full min-h-[38px] rounded-md px-2 py-1 flex items-center justify-center text-center text-xs readable-text ${styleClass}">
+                                ${escapeHtml(item.title)}
+                            </div>
+                        `;
+                    } else {
+                        cellContent = `
+                            <div class="w-full h-full min-h-[38px] rounded-md flex items-center justify-center text-[#D4D0C8] opacity-0 hover:opacity-100 transition-opacity text-xs">
+                                <i class="ph ph-plus"></i>
+                            </div>
+                        `;
+                    }
+
+                    html += `
+                        <div class="timetable-cell p-1 cursor-pointer hover:bg-[#FAF8F4] transition-colors"
+                             onclick="openScheduleModal(${dayIdx}, ${hour})">
+                            ${cellContent}
+                        </div>
+                    `;
+                });
+            }
+
+            grid.innerHTML = html;
+        }
+
+        function refreshAllViews() {
+            calculateWeekDates(baseDate);
+            renderWeeklyGrid();
+            renderReviewSection();
+            renderTimetable();
+            updateControlButtonsUI();
+        }
+
+        function updateControlButtonsUI() {
+            // 시작 요일 버튼 상태
+            const btnSun = document.getElementById('btn-start-sun');
+            const btnMon = document.getElementById('btn-start-mon');
+            if (weekStartDay === 0) {
+                btnSun.className = 'px-2.5 py-1.5 rounded-md bg-[#222222] text-white transition-all';
+                btnMon.className = 'px-2.5 py-1.5 rounded-md text-[#666666] hover:text-[#222222] transition-all';
+            } else {
+                btnMon.className = 'px-2.5 py-1.5 rounded-md bg-[#222222] text-white transition-all';
+                btnSun.className = 'px-2.5 py-1.5 rounded-md text-[#666666] hover:text-[#222222] transition-all';
+            }
+
+            // 보기 방식 버튼 상태
+            const btnWide = document.getElementById('btn-layout-wide');
+            const btnRow = document.getElementById('btn-layout-row');
+            if (layoutMode === 'wide') {
+                btnWide.className = 'px-2.5 py-1.5 rounded-md bg-[#222222] text-white transition-all flex items-center gap-1';
+                btnRow.className = 'px-2.5 py-1.5 rounded-md text-[#666666] hover:text-[#222222] transition-all flex items-center gap-1';
+            } else {
+                btnRow.className = 'px-2.5 py-1.5 rounded-md bg-[#222222] text-white transition-all flex items-center gap-1';
+                btnWide.className = 'px-2.5 py-1.5 rounded-md text-[#666666] hover:text-[#222222] transition-all flex items-center gap-1';
+            }
+
+            // 모드 버튼 상태
+            const btnChild = document.getElementById('btn-mode-child');
+            const btnParent = document.getElementById('btn-mode-parent');
+            if (currentMode === 'child') {
+                btnChild.className = 'px-3 py-1.5 rounded-md bg-[#222222] text-white shadow-sm transition-all flex items-center gap-1';
+                btnParent.className = 'px-3 py-1.5 rounded-md text-[#666666] hover:text-[#222222] transition-all flex items-center gap-1';
+            } else {
+                btnParent.className = 'px-3 py-1.5 rounded-md bg-[#222222] text-white shadow-sm transition-all flex items-center gap-1';
+                btnChild.className = 'px-3 py-1.5 rounded-md text-[#666666] hover:text-[#222222] transition-all flex items-center gap-1';
+            }
+        }
+
+        // -------------------------------------------------------------------------
+        // 8. 사용자 인터랙션 핸들러 (window 노출)
+        // -------------------------------------------------------------------------
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         window.switchTab = function(tabId) {
             currentTab = tabId;
+            const tabPlanner = document.getElementById('tab-planner');
+            const tabTimetable = document.getElementById('tab-timetable');
+            const viewPlanner = document.getElementById('view-planner');
+            const viewTimetable = document.getElementById('view-timetable');
+            const layoutControl = document.getElementById('view-layout-control');
+
             if (tabId === 'planner') {
-                DOM.tabPlanner.classList.replace('border-transparent', 'border-[#2D2D2D]');
-                DOM.tabPlanner.classList.replace('text-gray-400', 'text-[#2D2D2D]');
-                DOM.tabTimetable.classList.replace('border-[#2D2D2D]', 'border-transparent');
-                DOM.tabTimetable.classList.replace('text-[#2D2D2D]', 'text-gray-400');
-                
-                DOM.viewPlanner.classList.remove('hidden'); DOM.viewPlanner.classList.add('flex');
-                DOM.viewTimetable.classList.remove('flex'); DOM.viewTimetable.classList.add('hidden');
+                tabPlanner.className = 'px-3.5 py-1.5 rounded-md bg-white text-[#222222] shadow-sm font-semibold transition-all flex items-center gap-1.5';
+                tabTimetable.className = 'px-3.5 py-1.5 rounded-md text-[#666666] hover:text-[#222222] transition-all flex items-center gap-1.5';
+                viewPlanner.classList.remove('hidden');
+                viewPlanner.classList.add('flex');
+                viewTimetable.classList.add('hidden');
+                viewTimetable.classList.remove('flex');
+                layoutControl.classList.remove('hidden');
             } else {
-                DOM.tabTimetable.classList.replace('border-transparent', 'border-[#2D2D2D]');
-                DOM.tabTimetable.classList.replace('text-gray-400', 'text-[#2D2D2D]');
-                DOM.tabPlanner.classList.replace('border-[#2D2D2D]', 'border-transparent');
-                DOM.tabPlanner.classList.replace('text-[#2D2D2D]', 'text-gray-400');
-                
-                DOM.viewTimetable.classList.remove('hidden'); DOM.viewTimetable.classList.add('flex');
-                DOM.viewPlanner.classList.remove('flex'); DOM.viewPlanner.classList.add('hidden');
+                tabTimetable.className = 'px-3.5 py-1.5 rounded-md bg-white text-[#222222] shadow-sm font-semibold transition-all flex items-center gap-1.5';
+                tabPlanner.className = 'px-3.5 py-1.5 rounded-md text-[#666666] hover:text-[#222222] transition-all flex items-center gap-1.5';
+                viewTimetable.classList.remove('hidden');
+                viewTimetable.classList.add('flex');
+                viewPlanner.classList.add('hidden');
+                viewPlanner.classList.remove('flex');
+                layoutControl.classList.add('hidden');
+                renderTimetable();
             }
         };
 
         window.setMode = function(mode) {
             currentMode = mode;
-            if (mode === 'child') {
-                DOM.btnModeChild.classList.replace('text-gray-500', 'text-white');
-                DOM.btnModeChild.classList.replace('hover:text-black', 'bg-[#2D2D2D]');
-                DOM.btnModeChild.classList.add('shadow-sm');
-                
-                DOM.btnModeParent.classList.replace('text-white', 'text-gray-500');
-                DOM.btnModeParent.classList.replace('bg-[#2D2D2D]', 'hover:text-black');
-                DOM.btnModeParent.classList.remove('shadow-sm');
-                
-                document.querySelectorAll('input[name="taskInput"]').forEach(el => {
-                    el.disabled = false; el.nextElementSibling.disabled = false;
-                });
-                
-                DOM.taChildReflection.disabled = false;
-                DOM.taChildReflection.classList.add('bg-white');
-                DOM.taChildReflection.classList.remove('bg-gray-50', 'bg-transparent');
-                
-                DOM.taParentReview.disabled = true;
-                DOM.taParentReview.classList.remove('bg-white', 'bg-transparent');
-                DOM.taParentReview.classList.add('bg-gray-50');
-                
-            } else {
-                DOM.btnModeParent.classList.replace('text-gray-500', 'text-white');
-                DOM.btnModeParent.classList.replace('hover:text-black', 'bg-[#2D2D2D]');
-                DOM.btnModeParent.classList.add('shadow-sm');
-                
-                DOM.btnModeChild.classList.replace('text-white', 'text-gray-500');
-                DOM.btnModeChild.classList.replace('bg-[#2D2D2D]', 'hover:text-black');
-                DOM.btnModeChild.classList.remove('shadow-sm');
-                
-                document.querySelectorAll('input[name="taskInput"]').forEach(el => {
-                    el.disabled = true; el.nextElementSibling.disabled = true;
-                });
-                
-                DOM.taChildReflection.disabled = true;
-                DOM.taChildReflection.classList.remove('bg-white', 'bg-transparent');
-                DOM.taChildReflection.classList.add('bg-gray-50');
-                
-                DOM.taParentReview.disabled = false;
-                DOM.taParentReview.classList.add('bg-white');
-                DOM.taParentReview.classList.remove('bg-gray-50', 'bg-transparent');
-            }
-            renderTasks();
+            refreshAllViews();
         };
 
-        window.openScheduleModal = function(day, hour) {
-            if (currentMode === 'parent') {
-                showModal("학생 모드에서만 시간표를 수정할 수 있습니다.");
+        window.setStartDay = function(day) {
+            weekStartDay = day;
+            try { localStorage.setItem('planner_week_start_day', String(day)); } catch {}
+            refreshAllViews();
+        };
+
+        window.setLayoutMode = function(mode) {
+            layoutMode = mode;
+            try { localStorage.setItem('planner_layout_mode', mode); } catch {}
+            renderWeeklyGrid();
+            updateControlButtonsUI();
+        };
+
+        window.changeWeek = function(offset) {
+            baseDate.setDate(baseDate.getDate() + offset * 7);
+            refreshAllViews();
+        };
+
+        window.goToToday = function() {
+            baseDate = new Date();
+            refreshAllViews();
+        };
+
+        window.handleAddTask = function(formEl, dateStr) {
+            if (currentMode !== 'child') return;
+            const input = formEl.taskInput;
+            const text = input.value.trim();
+            if (!text) return;
+
+            tasks.push({
+                id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                date: dateStr,
+                text,
+                completed: false,
+                createdAt: Date.now()
+            });
+
+            input.value = '';
+            renderWeeklyGrid();
+            persistData();
+        };
+
+        window.toggleTask = function(taskId, isChecked) {
+            if (currentMode !== 'child') return;
+            const target = tasks.find(t => t.id === taskId);
+            if (!target) return;
+            target.completed = isChecked;
+            renderWeeklyGrid();
+            persistData();
+        };
+
+        window.deleteTask = function(taskId) {
+            if (currentMode !== 'child') return;
+            tasks = tasks.filter(t => t.id !== taskId);
+            renderWeeklyGrid();
+            persistData();
+        };
+
+        // 시간표 모달
+        window.openScheduleModal = function(dayIdx, hour) {
+            if (currentMode !== 'child') {
+                showMsgModal('시간표 추가 및 수정은 [자녀 모드]에서만 가능합니다.');
                 return;
             }
 
-            const slot = document.getElementById(`sch-slot-${day}-${hour}`);
-            const id = slot ? slot.getAttribute('data-id') : null;
-            
-            document.getElementById('sch-day').value = day;
+            const existing = schedules.find(s => s.day === dayIdx && s.hour === hour);
+            document.getElementById('sch-day').value = dayIdx;
             document.getElementById('sch-hour').value = hour;
-            document.getElementById('sch-id').value = id || '';
-            
+            document.getElementById('sch-id').value = existing ? existing.id : '';
+            document.getElementById('sch-slot-label').textContent = `${DAY_NAMES[dayIdx]}요일 ${String(hour).padStart(2, '0')}:00`;
+
             const titleInput = document.getElementById('sch-title');
             const typeInput = document.getElementById('sch-type');
             const delBtn = document.getElementById('btn-delete-sch');
 
-            if (id) {
-                const sch = schedules.find(s => s.id === id);
-                titleInput.value = sch.title; typeInput.value = sch.type;
+            if (existing) {
+                titleInput.value = existing.title;
+                typeInput.value = existing.type;
                 delBtn.classList.remove('hidden');
             } else {
-                titleInput.value = ''; typeInput.value = 'school';
+                titleInput.value = '';
+                typeInput.value = 'school';
                 delBtn.classList.add('hidden');
             }
 
-            document.querySelectorAll('.sch-type-btn').forEach(b => {
-                b.classList.remove('bg-[#2D2D2D]', 'text-white', 'border-[#2D2D2D]');
-                b.classList.add('border-gray-300', 'text-gray-700');
-                if (b.dataset.type === typeInput.value) {
-                    b.classList.remove('border-gray-300', 'text-gray-700');
-                    b.classList.add('bg-[#2D2D2D]', 'text-white', 'border-[#2D2D2D]');
-                }
-            });
+            updateScheduleTypeButtons(typeInput.value);
 
             const modal = document.getElementById('schedule-modal');
-            modal.classList.remove('hidden'); modal.classList.add('flex');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0'); modal.children[0].classList.remove('scale-95');
-                titleInput.focus();
-            }, 10);
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => titleInput.focus(), 50);
         };
+
+        function updateScheduleTypeButtons(selectedType) {
+            document.querySelectorAll('.sch-type-btn').forEach(btn => {
+                if (btn.dataset.type === selectedType) {
+                    btn.className = 'sch-type-btn py-2 rounded-lg text-xs font-semibold border border-[#222222] bg-[#222222] text-white transition-all';
+                } else {
+                    btn.className = 'sch-type-btn py-2 rounded-lg text-xs font-semibold border border-[#D4D0C8] bg-white text-[#555555] hover:border-[#222222] transition-all';
+                }
+            });
+        }
 
         window.closeScheduleModal = function() {
             const modal = document.getElementById('schedule-modal');
-            modal.classList.add('opacity-0'); modal.children[0].classList.add('scale-95');
-            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         };
 
-        window.showModal = function(msg) {
+        window.saveSchedule = function() {
+            if (currentMode !== 'child') return;
+            const title = document.getElementById('sch-title').value.trim();
+            const type = document.getElementById('sch-type').value;
+            const day = parseInt(document.getElementById('sch-day').value, 10);
+            const hour = parseInt(document.getElementById('sch-hour').value, 10);
+            const id = document.getElementById('sch-id').value;
+
+            if (!title) {
+                showMsgModal('일정 이름을 입력해주세요.');
+                return;
+            }
+
+            if (id) {
+                const target = schedules.find(s => s.id === id);
+                if (target) {
+                    target.title = title;
+                    target.type = type;
+                }
+            } else {
+                schedules.push({
+                    id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                    day,
+                    hour,
+                    title,
+                    type
+                });
+            }
+
+            renderTimetable();
+            persistData();
+            closeScheduleModal();
+        };
+
+        window.deleteScheduleFromModal = function() {
+            const id = document.getElementById('sch-id').value;
+            if (!id || currentMode !== 'child') return;
+            schedules = schedules.filter(s => s.id !== id);
+            renderTimetable();
+            persistData();
+            closeScheduleModal();
+        };
+
+        // 공유 코드 모달
+        window.openRoomModal = function() {
+            document.getElementById('input-room-id').value = roomId;
+            const infoEl = document.getElementById('firebase-status-info');
+            if (useCloudSync) {
+                infoEl.innerHTML = `<strong class="text-emerald-700">클라우드 실시간 동기화 활성화됨</strong><br>현재 코드(<code>${escapeHtml(roomId)}</code>)로 접속한 부모님과 자녀의 화면이 실시간으로 공유됩니다.`;
+            } else {
+                infoEl.innerHTML = `<strong class="text-[#222222]">로컬 저장 모드로 작동 중</strong><br>외부 호스팅에서 기기 간 실시간 동기화를 사용하려면 코드 상단의 <code>USER_FIREBASE_CONFIG</code>에 Firebase 설정값을 입력해주세요.`;
+            }
+            const modal = document.getElementById('room-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeRoomModal = function() {
+            const modal = document.getElementById('room-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
+        window.applyRoomId = function() {
+            const inputVal = document.getElementById('input-room-id').value;
+            const nextRoomId = sanitizeRoomId(inputVal);
+            roomId = nextRoomId;
+            try { localStorage.setItem('planner_room_id', roomId); } catch {}
+            closeRoomModal();
+
+            if (useCloudSync) {
+                subscribeToRoom(roomId);
+            } else {
+                loadFromLocal();
+            }
+            showMsgModal(`공유 코드가 [${roomId}](으)로 변경되었습니다.`);
+        };
+
+        window.copyShareLink = function() {
+            const targetCode = sanitizeRoomId(document.getElementById('input-room-id').value || roomId);
+            const url = new URL(window.location.href);
+            url.searchParams.set('room', targetCode);
+            const shareUrl = url.toString();
+
+            const tempInput = document.createElement('textarea');
+            tempInput.value = shareUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            try {
+                document.execCommand('copy');
+                showMsgModal('공유 링크가 복사되었습니다. 가족에게 전달해 주세요!');
+            } catch {
+                showMsgModal('링크 복사에 실패했습니다. 공유 코드를 직접 입력해 주세요.');
+            }
+            document.body.removeChild(tempInput);
+        };
+
+        // 알림 메시지 모달
+        window.showMsgModal = function(message) {
+            document.getElementById('msg-text').textContent = message;
             const modal = document.getElementById('msg-modal');
-            document.getElementById('msg-text').textContent = msg;
-            modal.classList.remove('hidden'); modal.classList.add('flex');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0'); modal.children[0].classList.remove('scale-95');
-            }, 10);
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         };
 
         window.closeMsgModal = function() {
             const modal = document.getElementById('msg-modal');
-            modal.classList.add('opacity-0'); modal.children[0].classList.add('scale-95');
-            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         };
 
-        function flashSyncStatus() {
-            DOM.syncIcon.style.display = 'inline-block';
-            DOM.syncStatus.textContent = '저장 완료';
-            DOM.syncStatus.classList.add('text-green-600');
-            
-            setTimeout(() => {
-                DOM.syncIcon.style.display = 'none';
-                DOM.syncStatus.textContent = '자동 저장됨';
-                DOM.syncStatus.classList.remove('text-green-600');
-            }, 2000);
+        // -------------------------------------------------------------------------
+        // 9. 이벤트 바인딩 및 앱 부트스트랩
+        // -------------------------------------------------------------------------
+        function setupEventListeners() {
+            // 시간표 분류 버튼 클릭
+            document.querySelectorAll('.sch-type-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const type = btn.dataset.type;
+                    document.getElementById('sch-type').value = type;
+                    updateScheduleTypeButtons(type);
+                });
+            });
+
+            // 1:1 회고 입력 자동 저장 (디바운스)
+            const handleReviewInput = () => {
+                if (!reviews[currentWeekId]) {
+                    reviews[currentWeekId] = { childReflection: '', parentReview: '' };
+                }
+                reviews[currentWeekId].childReflection = document.getElementById('ta-child-reflection').value;
+                reviews[currentWeekId].parentReview = document.getElementById('ta-parent-review').value;
+
+                updateReviewStatusText('입력 중...');
+                clearTimeout(reviewDebounceTimer);
+                reviewDebounceTimer = setTimeout(() => {
+                    persistData();
+                }, 600);
+            };
+
+            document.getElementById('ta-child-reflection').addEventListener('input', handleReviewInput);
+            document.getElementById('ta-parent-review').addEventListener('input', handleReviewInput);
+
+            // 모달 바깥 영역 클릭 시 닫기
+            ['schedule-modal', 'room-modal', 'msg-modal'].forEach(id => {
+                const modal = document.getElementById(id);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.add('hidden');
+                        modal.classList.remove('flex');
+                    }
+                });
+            });
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            DOM.btnModeChild = document.getElementById('btn-mode-child');
-            DOM.btnModeParent = document.getElementById('btn-mode-parent');
-            DOM.tabPlanner = document.getElementById('tab-planner');
-            DOM.tabTimetable = document.getElementById('tab-timetable');
-            DOM.viewPlanner = document.getElementById('view-planner');
-            DOM.viewTimetable = document.getElementById('view-timetable');
-            DOM.weeklyView = document.getElementById('weekly-view');
-            DOM.timetableGrid = document.getElementById('timetable-grid');
-            DOM.taChildReflection = document.getElementById('ta-child-reflection');
-            DOM.taParentReview = document.getElementById('ta-parent-review');
-            DOM.syncIcon = document.getElementById('sync-icon');
-            DOM.syncStatus = document.getElementById('sync-status');
-            
-            document.getElementById('btn-delete-sch').addEventListener('click', deleteScheduleFromModal);
-
-            // Init Start Day Toggle State
-            setStartDay(weekStartDay);
-
-            loadData();
-            refreshViews();
-            setupReviewListener();
+            setupEventListeners();
+            calculateWeekDates(baseDate);
+            renderTimetable();
+            initStorage();
         });
-
     </script>
 </body>
 </html>
